@@ -1,5 +1,7 @@
 package com.example.ui.screens
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -26,6 +28,8 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Storage
+import androidx.compose.material.icons.filled.SystemUpdate
+import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material.icons.filled.WifiOff
 import androidx.compose.material3.AlertDialog
@@ -46,6 +50,8 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -53,6 +59,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -60,6 +67,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.R
 import com.example.model.SupportedLanguages
+import com.example.ui.AppUpdateChecker
+import com.example.ui.AppUpdateInfo
 import com.example.ui.MainViewModel
 import com.example.ui.theme.MintPrimary
 import com.example.ui.theme.MintPrimaryDark
@@ -77,6 +86,16 @@ fun SettingsScreen(
     val totalStorageBytes by viewModel.totalStorageBytes.collectAsState()
     val simulateOffline by viewModel.simulateOffline.collectAsState()
     val isOffline by viewModel.isOffline.collectAsState()
+    val context = LocalContext.current
+    val updateScope = rememberCoroutineScope()
+    var updateInfo by remember { mutableStateOf<AppUpdateInfo?>(null) }
+    var checkingUpdate by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        checkingUpdate = true
+        updateInfo = AppUpdateChecker.check(context)
+        checkingUpdate = false
+    }
 
     var showClearHistoryDialog by remember { mutableStateOf(false) }
 
@@ -206,7 +225,74 @@ fun SettingsScreen(
             }
         }
 
-        // Section 3: Developer / Offline Test Simulator
+        // Section 3: App Updates
+        SettingsGroupCard(
+            title = "App Updates",
+            icon = Icons.Default.SystemUpdate
+        ) {
+            Text(
+                text = "Check the PaliaAPK HUB update service for a newer Apna Translator version.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Surface(
+                shape = RoundedCornerShape(12.dp),
+                color = if (updateInfo?.available == true) Color(0xFFE8F5E9) else MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier.padding(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(Icons.Default.SystemUpdate, contentDescription = null, tint = MintPrimaryDark)
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = if (checkingUpdate) "Checking for updates..." else (updateInfo?.message ?: "Not checked yet"),
+                        style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold),
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedButton(
+                    onClick = {
+                        updateScope.launch {
+                            checkingUpdate = true
+                            updateInfo = AppUpdateChecker.check(context)
+                            checkingUpdate = false
+                        }
+                    },
+                    enabled = !checkingUpdate,
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(Icons.Default.SystemUpdate, contentDescription = null, modifier = Modifier.size(17.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(if (checkingUpdate) "Checking..." else "Check for Updates")
+                }
+
+                if (updateInfo?.available == true) {
+                    Button(
+                        onClick = {
+                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://shanpalia.github.io/WebsitePaliaAPK_V.2/")))
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = MintPrimaryDark),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Icon(Icons.Default.OpenInNew, contentDescription = null, modifier = Modifier.size(17.dp))
+                        Spacer(modifier = Modifier.width(5.dp))
+                        Text("Update")
+                    }
+                }
+            }
+        }
+
+        // Section 4: Developer / Offline Test Simulator
         SettingsGroupCard(
             title = "Offline Simulation & Testing",
             icon = Icons.Default.BugReport
@@ -254,7 +340,7 @@ fun SettingsScreen(
             }
         }
 
-        // Section 4: Data & Privacy
+        // Section 5: Data & Privacy
         SettingsGroupCard(
             title = "Data & Privacy",
             icon = Icons.Default.Lock
@@ -291,7 +377,7 @@ fun SettingsScreen(
             }
         }
 
-        // Section 5: Brand & Developer Credits
+        // Section 6: Brand & Developer Credits
         ElevatedCard(
             shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.elevatedCardColors(

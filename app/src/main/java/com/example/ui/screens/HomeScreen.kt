@@ -15,7 +15,6 @@ import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.CameraAlt
 import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material3.CardDefaults
@@ -94,7 +93,7 @@ fun HomeScreen(
             }
         }
 
-        SectionHeader("Quick Actions", Icons.Default.Translate, "View All")
+        SectionHeader("Quick Actions", Icons.Default.Translate)
 
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
             QuickAction("Text Translate", "Type & Translate", Icons.Default.Translate, MintPrimaryDark, Color(0xFFE8FBF8), onOpenTranslator, Modifier.weight(1f))
@@ -106,7 +105,7 @@ fun HomeScreen(
             QuickAction("Conversation Mode", "Two-way Translation", Icons.Default.Chat, Color(0xFFD88A00), Color(0xFFFFF6E5), onOpenConversation, Modifier.weight(1f))
         }
 
-        SectionHeader("Recent Translations", Icons.Default.History, "View All")
+        SectionHeader("Recent Translations", Icons.Default.History)
 
         ElevatedCard(
             modifier = Modifier.fillMaxWidth(),
@@ -142,45 +141,21 @@ fun HomeScreen(
             }
         }
 
-        SectionHeader("Tips for Better Translation", Icons.Default.Lightbulb, "View All")
-
-        Surface(
-            modifier = Modifier.fillMaxWidth().clickable { onOpenTranslator() },
-            shape = RoundedCornerShape(18.dp),
-            color = Color(0xFFF1FBFA)
-        ) {
-            Row(
-                modifier = Modifier.padding(18.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Surface(shape = RoundedCornerShape(14.dp), color = Color(0xFFDDF5F1)) {
-                    Icon(Icons.Default.Lightbulb, null, tint = MintPrimaryDark, modifier = Modifier.padding(12.dp).size(26.dp))
-                }
-                Spacer(modifier = Modifier.width(14.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text("Use offline language packs", fontWeight = FontWeight.Bold)
-                    Text(
-                        "Manage your installed language packs from Settings.",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
-                Icon(Icons.Default.ArrowForward, null, tint = MintPrimaryDark)
-            }
-        }
     }
 }
 
 @Composable
-private fun SectionHeader(title: String, icon: androidx.compose.ui.graphics.vector.ImageVector, action: String) {
+private fun SectionHeader(title: String, icon: androidx.compose.ui.graphics.vector.ImageVector) {
     Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Surface(shape = RoundedCornerShape(14.dp), color = Color(0xFFE4F8F5)) {
             Icon(icon, null, tint = MintPrimaryDark, modifier = Modifier.padding(10.dp).size(24.dp))
         }
         Spacer(modifier = Modifier.width(12.dp))
-        Text(title, style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.ExtraBold), modifier = Modifier.weight(1f))
-        Text(action, color = MintPrimaryDark, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-        Icon(Icons.Default.ArrowForward, null, tint = MintPrimaryDark, modifier = Modifier.padding(start = 3.dp))
+        Text(
+            title,
+            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.ExtraBold),
+            modifier = Modifier.weight(1f)
+        )
     }
 }
 

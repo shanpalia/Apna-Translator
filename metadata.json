@@ -1,0 +1,6 @@
+{
+  "name": "Apna Translator",
+  "description": "Offline voice translator by PaliaAPK HUB (ShanPalia) with on-device speech recognition, local translation engine, offline TTS, and conversation mode.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

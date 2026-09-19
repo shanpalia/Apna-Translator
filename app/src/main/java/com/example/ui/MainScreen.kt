@@ -12,11 +12,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material.icons.outlined.Chat
 import androidx.compose.material.icons.outlined.History
+import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Translate
@@ -62,6 +64,16 @@ fun MainScreen(
             onSplashFinished = { showSplash = false }
         )
     } else {
+        // Android system back: return to Home instead of exiting the app.
+        // If Home is already visible, consume the back press so the app stays open.
+        BackHandler {
+            when {
+                showTranslatorFromHome -> showTranslatorFromHome = false
+                selectedTab != 0 -> viewModel.setSelectedTab(0)
+                else -> Unit
+            }
+        }
+
         Scaffold(
             topBar = {
                 AppTopBar(isOffline = isOffline)
@@ -73,7 +85,7 @@ fun MainScreen(
                     modifier = Modifier.navigationBarsPadding().testTag("bottom_navigation_bar")
                 ) {
                     val items = listOf(
-                        Triple(0, "Translate", Icons.Filled.Translate to Icons.Outlined.Translate),
+                        Triple(0, "Home", Icons.Filled.Home to Icons.Outlined.Home),
                         Triple(1, "Chat", Icons.Filled.Chat to Icons.Outlined.Chat),
                         Triple(2, "History", Icons.Filled.History to Icons.Outlined.History),
                         Triple(3, "Languages", Icons.Filled.Language to Icons.Outlined.Language),

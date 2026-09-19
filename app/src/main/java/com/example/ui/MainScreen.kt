@@ -1,5 +1,6 @@
 package com.example.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -39,6 +40,7 @@ import androidx.compose.ui.unit.sp
 import com.example.ui.components.AppTopBar
 import com.example.ui.screens.ConversationScreen
 import com.example.ui.screens.HistoryScreen
+import com.example.ui.screens.HomeScreen
 import com.example.ui.screens.LanguagesScreen
 import com.example.ui.screens.SettingsScreen
 import com.example.ui.screens.SplashScreen
@@ -51,6 +53,7 @@ fun MainScreen(
     viewModel: MainViewModel
 ) {
     var showSplash by remember { mutableStateOf(true) }
+    var showTranslatorFromHome by remember { mutableStateOf(false) }
     val selectedTab by viewModel.selectedTab.collectAsState()
     val isOffline by viewModel.isOffline.collectAsState()
 
@@ -81,7 +84,11 @@ fun MainScreen(
                         val isSelected = selectedTab == index
                         NavigationBarItem(
                             selected = isSelected,
-                            onClick = { viewModel.setSelectedTab(index) },
+                            onClick = {
+                                viewModel.setSelectedTab(index)
+                                if (index != 0) showTranslatorFromHome = false
+                                if (index == 0) showTranslatorFromHome = false
+                            },
                             icon = {
                                 Icon(
                                     imageVector = if (isSelected) icons.first else icons.second,
@@ -120,7 +127,16 @@ fun MainScreen(
                     label = "tab_transition"
                 ) { tab ->
                     when (tab) {
-                        0 -> TranslateScreen(viewModel = viewModel)
+                        0 -> if (showTranslatorFromHome) {
+                            BackHandler { showTranslatorFromHome = false }
+                            TranslateScreen(viewModel = viewModel)
+                        } else {
+                            HomeScreen(
+                                viewModel = viewModel,
+                                onOpenTranslator = { showTranslatorFromHome = true },
+                                onOpenConversation = { viewModel.setSelectedTab(1) }
+                            )
+                        }
                         1 -> ConversationScreen(viewModel = viewModel)
                         2 -> HistoryScreen(viewModel = viewModel)
                         3 -> LanguagesScreen(viewModel = viewModel)

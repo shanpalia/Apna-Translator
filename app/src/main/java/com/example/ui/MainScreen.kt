@@ -59,21 +59,22 @@ fun MainScreen(
     val selectedTab by viewModel.selectedTab.collectAsState()
     val isOffline by viewModel.isOffline.collectAsState()
 
+    // Always consume the Android system Back button so the app does not exit unexpectedly.
+    // Navigation behavior: Translator -> Home, any other tab -> Home, Home -> stay on Home.
+    BackHandler {
+        when {
+            showSplash -> Unit
+            showTranslatorFromHome -> showTranslatorFromHome = false
+            selectedTab != 0 -> viewModel.setSelectedTab(0)
+            else -> Unit
+        }
+    }
+
     if (showSplash) {
         SplashScreen(
             onSplashFinished = { showSplash = false }
         )
     } else {
-        // Android system back: return to Home instead of exiting the app.
-        // If Home is already visible, consume the back press so the app stays open.
-        BackHandler {
-            when {
-                showTranslatorFromHome -> showTranslatorFromHome = false
-                selectedTab != 0 -> viewModel.setSelectedTab(0)
-                else -> Unit
-            }
-        }
-
         Scaffold(
             topBar = {
                 AppTopBar(isOffline = isOffline)
@@ -140,7 +141,6 @@ fun MainScreen(
                 ) { tab ->
                     when (tab) {
                         0 -> if (showTranslatorFromHome) {
-                            BackHandler { showTranslatorFromHome = false }
                             TranslateScreen(viewModel = viewModel)
                         } else {
                             HomeScreen(

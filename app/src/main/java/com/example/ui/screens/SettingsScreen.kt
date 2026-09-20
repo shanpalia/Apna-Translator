@@ -232,7 +232,7 @@ fun SettingsScreen(
             icon = Icons.Default.SystemUpdate
         ) {
             Text(
-                text = "Check the PaliaAPK HUB update service for a newer Apna Translator version.",
+                text = "Check PaliaAPK HUB for the latest Apna Translator version. If a newer version is published, the Download Update button will open the download page.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -277,17 +277,22 @@ fun SettingsScreen(
                     Text(if (checkingUpdate) "Checking..." else "Check for Updates")
                 }
 
-                if (updateInfo?.available == true) {
+                if (updateInfo?.available == true && updateInfo?.downloadUrl != null) {
                     Button(
                         onClick = {
-                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://shanpalia.github.io/WebsitePaliaAPK_V.2/")))
+                            context.startActivity(
+                                Intent(
+                                    Intent.ACTION_VIEW,
+                                    Uri.parse(updateInfo?.downloadUrl)
+                                )
+                            )
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = MintPrimaryDark),
                         shape = RoundedCornerShape(10.dp)
                     ) {
                         Icon(Icons.Default.OpenInNew, contentDescription = null, modifier = Modifier.size(17.dp))
                         Spacer(modifier = Modifier.width(5.dp))
-                        Text("Update")
+                        Text("Download Update")
                     }
                 }
             }

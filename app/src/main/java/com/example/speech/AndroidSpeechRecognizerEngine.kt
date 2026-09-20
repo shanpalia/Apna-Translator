@@ -66,24 +66,36 @@ class AndroidSpeechRecognizerEngine(
                     return@post
                 }
 
-                // Cleanup any existing recognizer
+                // Cleanup any existing recognizer before creating a new session.
                 speechRecognizer?.destroy()
+                speechRecognizer = null
 
-                // If on-device recognizer is available on API 31+, prefer createOnDeviceSpeechRecognizer
-                speechRecognizer = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+                val onDeviceAvailable = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
                     SpeechRecognizer.isOnDeviceRecognitionAvailable(context)
-                ) {
+
+                // Offline-only mode must not silently fall back to a network-backed recognizer.
+                // EXTRA_PREFER_OFFLINE is only a preference; the standard recognizer may still
+                // use a remote service.
+                if (preferOfflineOnly && !onDeviceAvailable) {
+                    _errorMessage.value =
+                        "Offline speech recognition is not available on this device. Install the offline language model in your system speech settings."
+                    _isListening.value = false
+                    return@post
+                }
+
+                speechRecognizer = if (onDeviceAvailable) {
                     try {
                         SpeechRecognizer.createOnDeviceSpeechRecognizer(context)
                     } catch (e: Exception) {
-                        Log.w(TAG, "Failed creating on-device recognizer, falling back to standard: ${e.message}")
-                        SpeechRecognizer.createSpeechRecognizer(context)
+                        Log.e(TAG, "Failed creating on-device recognizer", e)
+                        _errorMessage.value =
+                            "Unable to start on-device speech recognition. Please check your device's speech recognition service."
+                        _isListening.value = false
+                        return@post
                     }
                 } else {
                     SpeechRecognizer.createSpeechRecognizer(context)
                 }
-
-                speechRecognizer?.setRecognitionListener(createListener())
 
                 val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
                     putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
@@ -91,15 +103,12 @@ class AndroidSpeechRecognizerEngine(
                     putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, bcp47Tag)
                     putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
                     putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
-
-                    if (preferOfflineOnly) {
-                        putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true)
-                    }
                 }
 
+                speechRecognizer?.setRecognitionListener(createListener())
                 speechRecognizer?.startListening(intent)
                 _isListening.value = true
-            } catch (e: Exception) {
+            }catch (e: Exception) {
                 Log.e(TAG, "Error starting speech recognition: ${e.message}", e)
                 _errorMessage.value = "Failed to start speech recognition: ${e.localizedMessage ?: "Unknown error"}"
                 _isListening.value = false
@@ -171,6 +180,17 @@ class AndroidSpeechRecognizerEngine(
                 val message = mapErrorCodeToMessage(errorCode)
                 Log.w(TAG, "Recognition error ($errorCode): $message")
                 _errorMessage.value = message
+
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+                    errorCode == SpeechRecognizer.ERROR_SERVER_DISCONNECTED
+                ) {
+                    try {
+                        speechRecognizer?.destroy()
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Error destroying disconnected recognizer: ${e.message}")
+                    }
+                    speechRecognizer = null
+                }
             }
 
             override fun onResults(results: Bundle?) {
@@ -202,9 +222,9 @@ class AndroidSpeechRecognizerEngine(
             SpeechRecognizer.ERROR_AUDIO -> "Audio recording error. Please check your microphone."
             SpeechRecognizer.ERROR_CLIENT -> "Speech recognition client error."
             SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "Microphone permission is required."
-            SpeechRecognizer.ERROR_NETWORK -> "No offline speech model is available for this language on this device."
-            SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> "Network or model loading timeout."
-            SpeechRecognizer.ERROR_NO_MATCH -> "Speech could not be recognized. Please try again."
+            SpeechRecognizer.ERROR_NETWORK -> "Offline speech model is unavailable for this language. Install the offline language's speech model and try again."
+            SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> "Speech model loading timed out. Please try again."
+            SpeechRecognizer.ERROR_NO_MATCH -> "Speech could not be recognized. Please try again."\n            SpeechRecognizer.ERROR_LANGUAGE_NOT_SUPPORTED -> "This language is not supported by the device's speech recognizer."\n            SpeechRecognizer.ERROR_LANGUAGE_UNAVAILABLE -> "This language's offline speech model is not downloaded. Download it in system speech settings and try again."
             SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> "Speech recognition engine is busy. Please try again."
             SpeechRecognizer.ERROR_SERVER -> "On-device speech recognition service error."
             SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "No speech detected. Please try again."

@@ -108,7 +108,7 @@ class AndroidSpeechRecognizerEngine(
                 speechRecognizer?.setRecognitionListener(createListener())
                 speechRecognizer?.startListening(intent)
                 _isListening.value = true
-            }catch (e: Exception) {
+            } catch (e: Exception) {
                 Log.e(TAG, "Error starting speech recognition: ${e.message}", e)
                 _errorMessage.value = "Failed to start speech recognition: ${e.localizedMessage ?: "Unknown error"}"
                 _isListening.value = false

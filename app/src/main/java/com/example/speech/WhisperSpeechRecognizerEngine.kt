@@ -56,6 +56,7 @@ class WhisperSpeechRecognizerEngine(
     private var wavFile: File? = null
     private var currentLanguageCode = "en"
     private var stopRequested = false
+    private var cancelRequested = false
 
     override fun isOfflineRecognitionAvailable(): Boolean = true
 
@@ -68,6 +69,7 @@ class WhisperSpeechRecognizerEngine(
             _rmsDb.value = 0f
             currentLanguageCode = bcp47Tag.substringBefore("-").lowercase()
             stopRequested = false
+            cancelRequested = false
             _isListening.value = true
 
             scope.launch {
@@ -198,18 +200,18 @@ class WhisperSpeechRecognizerEngine(
                 recorder.release()
                 audioRecord = null
 
-                if (!stopRequested && dataBytes >= SAMPLE_RATE * BYTES_PER_SAMPLE / 2) {
+                if (!cancelRequested && dataBytes >= SAMPLE_RATE * BYTES_PER_SAMPLE / 2) {
                     transcribe(modelFile, output)
                 } else {
                     _isListening.value = false
-                    if (!stopRequested) _errorMessage.value = "No speech detected. Please try again."
+                    if (!cancelRequested) _errorMessage.value = "No speech detected. Please try again."
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Recording failed", e)
                 try { recorder.release() } catch (_: Exception) {}
                 audioRecord = null
                 _isListening.value = false
-                if (!stopRequested) _errorMessage.value = "Microphone recording failed. Please try again."
+                if (!cancelRequested) _errorMessage.value = "Microphone recording failed. Please try again."
             }
         }.also { it.start() }
     }
@@ -258,6 +260,7 @@ class WhisperSpeechRecognizerEngine(
     override fun stopListening() {
         mainHandler.post {
             stopRequested = true
+            cancelRequested = false
             _rmsDb.value = 0f
             try { audioRecord?.stop() } catch (_: Exception) {}
             _isListening.value = false
@@ -267,6 +270,7 @@ class WhisperSpeechRecognizerEngine(
     override fun cancel() {
         mainHandler.post {
             stopRequested = true
+            cancelRequested = true
             try { audioRecord?.stop() } catch (_: Exception) {}
             try { audioRecord?.release() } catch (_: Exception) {}
             audioRecord = null
@@ -313,6 +317,7 @@ class WhisperSpeechRecognizerEngine(
 
     private fun stopInternal() {
         stopRequested = true
+        cancelRequested = true
         try { audioRecord?.stop() } catch (_: Exception) {}
         try { audioRecord?.release() } catch (_: Exception) {}
         audioRecord = null

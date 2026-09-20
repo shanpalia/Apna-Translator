@@ -5,37 +5,35 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.net.HttpURLConnection
 import java.net.URL
-import java.net.URLEncoder
+import org.json.JSONObject
 
 data class AppUpdateInfo(
     val available: Boolean,
     val latestVersion: String?,
     val downloadUrl: String?,
+    val releaseNotes: String?,
     val message: String
 )
 
 object AppUpdateChecker {
-    private const val SUPABASE_URL = "https://ralinnuegsbuvlhwpzln.supabase.co"
-    private const val SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFseSIsInJlZiI6ImphbGlubnVlZ3NidXZsaHdwemxuIiwiaWF0IjoxNzgwMjk1NjQyLCJleHAiOjIwOTU4NzE2NDJ9.hIec6UxRx5gzSMTi5oJ3_xXw3d1QKCmKsPF-stBwIFE"
-    private const val APP_NAME = "Apna Translator"
+    private const val UPDATE_URL =
+        "https://shanpalia.github.io/WebsitePaliaAPK_V.2/updates/apna-translator.json"
 
     suspend fun check(context: Context): AppUpdateInfo = withContext(Dispatchers.IO) {
         try {
-            val name = URLEncoder.encode(APP_NAME, "UTF-8")
-            val endpoint = "$SUPABASE_URL/rest/v1/apps?select=name,version,apk_url&name=eq.$name&limit=1"
-            val connection = (URL(endpoint).openConnection() as HttpURLConnection).apply {
+            val connection = (URL(UPDATE_URL).openConnection() as HttpURLConnection).apply {
                 requestMethod = "GET"
                 connectTimeout = 8000
                 readTimeout = 8000
-                setRequestProperty("apikey", SUPABASE_ANON_KEY)
-                setRequestProperty("Authorization", "Bearer $SUPABASE_ANON_KEY")
+                useCaches = false
+                setRequestProperty("Cache-Control", "no-cache")
                 setRequestProperty("Accept", "application/json")
             }
 
             if (connection.responseCode !in 200..299) {
                 connection.disconnect()
                 return@withContext AppUpdateInfo(
-                    false, null, null,
+                    false, null, null, null,
                     "Update server is unavailable. Please try again."
                 )
             }
@@ -43,15 +41,16 @@ object AppUpdateChecker {
             val body = connection.inputStream.bufferedReader().use { it.readText() }
             connection.disconnect()
 
-            val latest = Regex(""version"\s*:\s*"([^"]+)"")
-                .find(body)?.groupValues?.get(1)
+            val json = JSONObject(body)
+            val latest = json.optString("latest_version").trim()
+            val downloadUrl = json.optString("download_url").trim().ifBlank { null }
+            val releaseNotes = json.optString("release_notes").trim().ifBlank { null }
 
-            val downloadUrl = Regex(""apk_url"\s*:\s*"([^"]+)"")
-                .find(body)?.groupValues?.get(1)
-                ?.replace("\\/", "/")
-
-            if (latest.isNullOrBlank()) {
-                AppUpdateInfo(false, null, null, "No Apna Translator update is published yet.")
+            if (latest.isBlank()) {
+                AppUpdateInfo(
+                    false, null, null, null,
+                    "No Apna Translator update is published yet."
+                )
             } else {
                 val current = context.packageManager
                     .getPackageInfo(context.packageName, 0)
@@ -59,32 +58,35 @@ object AppUpdateChecker {
 
                 val newer = compareVersions(latest, current) > 0
 
-                if (newer && !downloadUrl.isNullOrBlank()) {
+                if (newer && downloadUrl != null) {
                     AppUpdateInfo(
                         available = true,
                         latestVersion = latest,
                         downloadUrl = downloadUrl,
-                        message = "New version $latest is available. Tap Download Update to install it."
+                        releaseNotes = releaseNotes,
+                        message = "New version $latest is available."
                     )
                 } else if (newer) {
                     AppUpdateInfo(
                         available = true,
                         latestVersion = latest,
                         downloadUrl = null,
-                        message = "New version $latest is available, but the APK download link is not published yet."
+                        releaseNotes = releaseNotes,
+                        message = "New version $latest is available, but the download link is not published yet."
                     )
                 } else {
                     AppUpdateInfo(
                         available = false,
                         latestVersion = latest,
                         downloadUrl = null,
+                        releaseNotes = null,
                         message = "You are up to date (v$current)."
                     )
                 }
             }
         } catch (_: Exception) {
             AppUpdateInfo(
-                false, null, null,
+                false, null, null, null,
                 "Could not check for updates. Please try again."
             )
         }

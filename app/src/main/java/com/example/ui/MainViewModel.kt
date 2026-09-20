@@ -9,7 +9,7 @@ import com.example.data.history.HistoryRepository
 import com.example.data.network.NetworkMonitor
 import com.example.model.Language
 import com.example.model.SupportedLanguages
-import com.example.speech.AndroidSpeechRecognizerEngine
+import com.example.speech.WhisperSpeechRecognizerEngine
 import com.example.speech.SpeechRecognizerEngine
 import com.example.translation.LanguagePackManager
 import com.example.translation.ModelPackInfo
@@ -50,7 +50,7 @@ class MainViewModel(
         historyRepository = HistoryRepository(db.historyDao())
         languagePackManager = LanguagePackManager(application)
         translationEngine = OfflineTranslationEngine(languagePackManager)
-        speechEngine = AndroidSpeechRecognizerEngine(application)
+        speechEngine = WhisperSpeechRecognizerEngine(application)
         ttsEngine = AndroidOfflineTtsEngine(application)
         networkMonitor = NetworkMonitor(application)
 

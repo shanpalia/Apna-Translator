@@ -290,7 +290,8 @@ class WhisperSpeechRecognizerEngine(
 
     private fun writeWavHeader(file: File, dataBytes: Long) {
         RandomAccessFile(file, "rw").use { raf ->
-            raf.setLength(0)
+            // Rewrite only the 44-byte WAV header; keep the recorded PCM payload intact.
+            raf.seek(0)
             raf.writeBytes("RIFF")
             raf.writeIntLE((36 + dataBytes).toInt())
             raf.writeBytes("WAVE")

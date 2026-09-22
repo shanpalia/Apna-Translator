@@ -1,6 +1,8 @@
 package com.example.speech
 
+import android.Manifest
 import android.content.Context
+import android.content.pm.PackageManager
 import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
@@ -63,6 +65,15 @@ class WhisperSpeechRecognizerEngine(
     override fun startListening(bcp47Tag: String, preferOfflineOnly: Boolean) {
         mainHandler.post {
             stopInternal()
+            if (androidx.core.content.ContextCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.RECORD_AUDIO
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                _errorMessage.value = "Microphone permission is required. Please allow microphone access in App Settings and try again."
+                _isListening.value = false
+                return@post
+            }
             _errorMessage.value = null
             _partialResult.value = ""
             _finalResult.value = ""

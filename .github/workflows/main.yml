@@ -1,4 +1,5 @@
 name: Build APK
+# Rebuild after microphone permission fix
 
 on:
   workflow_dispatch:

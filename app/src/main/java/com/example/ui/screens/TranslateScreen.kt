@@ -30,6 +30,8 @@ import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.ErrorOutline
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.filled.SwapHoriz
@@ -109,6 +111,7 @@ fun TranslateScreen(
     var showTargetPicker by remember { mutableStateOf(false) }
     var userCopiedFeedback by remember { mutableStateOf<String?>(null) }
     var permissionDeniedNotice by remember { mutableStateOf<String?>(null) }
+    var isPaused by remember { mutableStateOf(false) }
 
     // Audio Permission Launcher
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -116,6 +119,7 @@ fun TranslateScreen(
     ) { isGranted ->
         if (isGranted) {
             permissionDeniedNotice = null
+            isPaused = false
             viewModel.startListeningForMain()
         } else {
             permissionDeniedNotice = "Microphone permission is required for voice translation."
@@ -267,6 +271,57 @@ fun TranslateScreen(
             },
             onStopClick = { viewModel.stopListening() }
         )
+
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Button(
+                onClick = {
+                    if (!isListening) {
+                        isPaused = false
+                        permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                    }
+                },
+                enabled = !isListening,
+                modifier = Modifier.weight(1f)
+            ) {
+                Icon(Icons.Default.PlayArrow, contentDescription = null)
+                Spacer(Modifier.width(4.dp))
+                Text("Start")
+            }
+            FilledTonalButton(
+                onClick = {
+                    if (isPaused) {
+                        viewModel.speechEngine.resumeListening()
+                        isPaused = false
+                    } else {
+                        viewModel.speechEngine.pauseListening()
+                        isPaused = true
+                    }
+                },
+                enabled = isListening,
+                modifier = Modifier.weight(1f)
+            ) {
+                Icon(if (isPaused) Icons.Default.PlayArrow else Icons.Default.Pause, contentDescription = null)
+                Spacer(Modifier.width(4.dp))
+                Text(if (isPaused) "Resume" else "Pause")
+            }
+            Button(
+                onClick = {
+                    viewModel.stopListening()
+                    isPaused = false
+                },
+                enabled = isListening,
+                modifier = Modifier.weight(1f),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+            ) {
+                Icon(Icons.Default.Stop, contentDescription = null)
+                Spacer(Modifier.width(4.dp))
+                Text("Stop")
+            }
+        }
 
         // Permission denied warning
         AnimatedVisibility(visible = permissionDeniedNotice != null) {

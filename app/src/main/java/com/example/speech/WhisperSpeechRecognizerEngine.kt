@@ -59,6 +59,7 @@ class WhisperSpeechRecognizerEngine(
     private var wavFile: File? = null
     private var currentLanguageCode = "en"
     private var stopRequested = false
+    @Volatile private var pauseRequested = false
     private var cancelRequested = false
 
     override fun isOfflineRecognitionAvailable(): Boolean = true
@@ -81,6 +82,7 @@ class WhisperSpeechRecognizerEngine(
             _rmsDb.value = 0f
             currentLanguageCode = bcp47Tag.substringBefore("-").lowercase()
             stopRequested = false
+            pauseRequested = false
             cancelRequested = false
             _isListening.value = true
 
@@ -197,6 +199,10 @@ class WhisperSpeechRecognizerEngine(
                     while (!stopRequested) {
                         val read = recorder.read(buffer, 0, buffer.size)
                         if (read <= 0) continue
+                        if (pauseRequested) {
+                            _rmsDb.value = 0f
+                            continue
+                        }
                         for (i in 0 until read) {
                             val sample = buffer[i].toInt()
                             wavOut.write(sample and 0xFF)
@@ -279,6 +285,17 @@ class WhisperSpeechRecognizerEngine(
         }
     }
 
+    override fun pauseListening() {
+        pauseRequested = true
+        _partialResult.value = "Paused"
+        _rmsDb.value = 0f
+    }
+
+    override fun resumeListening() {
+        pauseRequested = false
+        _partialResult.value = ""
+    }
+
     override fun stopListening() {
         mainHandler.post {
             stopRequested = true
@@ -340,6 +357,7 @@ class WhisperSpeechRecognizerEngine(
 
     private fun stopInternal() {
         stopRequested = true
+        pauseRequested = false
         cancelRequested = true
         try { audioRecord?.stop() } catch (_: Exception) {}
         try { audioRecord?.release() } catch (_: Exception) {}

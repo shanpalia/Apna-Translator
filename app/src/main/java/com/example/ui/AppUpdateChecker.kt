@@ -17,7 +17,7 @@ data class AppUpdateInfo(
 
 object AppUpdateChecker {
     private const val UPDATE_URL =
-        "https://shanpalia.github.io/WebsitePaliaAPK_V.2/updates/updates.json"
+        "https://paliaapkhub.com/updates/updates.json"
 
     suspend fun check(context: Context): AppUpdateInfo = withContext(Dispatchers.IO) {
         try {

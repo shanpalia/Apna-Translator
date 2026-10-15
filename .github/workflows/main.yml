@@ -31,6 +31,14 @@ jobs:
         with:
           gradle-version: '9.3.1'
 
+      - name: Bundle multilingual offline speech model
+        run: |
+          mkdir -p app/src/main/assets
+          curl --fail --location --retry 3 --retry-delay 2 \
+            "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin?download=true" \
+            --output app/src/main/assets/ggml-base.bin
+          test "$(stat -c%s app/src/main/assets/ggml-base.bin)" -gt 50000000
+
       - name: Build Debug APK
         run: gradle assembleDebug --stacktrace
 

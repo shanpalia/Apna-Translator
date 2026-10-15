@@ -11,6 +11,8 @@ interface SpeechRecognizerEngine {
 
     fun isOfflineRecognitionAvailable(): Boolean
     fun startListening(bcp47Tag: String, preferOfflineOnly: Boolean = true)
+    fun pauseListening()
+    fun resumeListening()
     fun stopListening()
     fun cancel()
     fun release()

@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.BufferedOutputStream
+import java.io.InputStream
 import java.io.File
 import java.io.FileOutputStream
 import java.io.RandomAccessFile
@@ -107,34 +108,44 @@ class WhisperSpeechRecognizerEngine(
         val modelFile = File(dir, MODEL_FILE_NAME)
         if (modelFile.exists() && modelFile.length() > 50_000_000L) return@withContext modelFile
 
-        _partialResult.value = "Downloading offline speech model (about 142 MB)…"
+        // The release APK bundles the multilingual model in assets, so users do not
+        // need to download a separate speech model for each language or on first launch.
+        val bundledModel = runCatching { context.assets.open(MODEL_FILE_NAME) }.getOrNull()
+        if (bundledModel != null) {
+            _partialResult.value = "Preparing built-in offline speech model…"
+            val tempFile = File(dir, "$MODEL_FILE_NAME.part")
+            bundledModel.use { input ->
+                FileOutputStream(tempFile).use { output ->
+                    input.copyTo(output, bufferSize = 64 * 1024)
+                    output.fd.sync()
+                }
+            }
+            if (tempFile.length() < 50_000_000L) {
+                tempFile.delete()
+                throw IllegalStateException("Bundled speech model is incomplete")
+            }
+            if (modelFile.exists()) modelFile.delete()
+            if (!tempFile.renameTo(modelFile)) {
+                tempFile.copyTo(modelFile, overwrite = true)
+                tempFile.delete()
+            }
+            return@withContext modelFile
+        }
+
+        // Development fallback only. Release workflow packages the model in the APK.
+        _partialResult.value = "Built-in model missing; downloading speech model…"
         val tempFile = File(dir, "$MODEL_FILE_NAME.part")
         val request = okhttp3.Request.Builder().url(MODEL_URL).build()
-
         okhttp3.OkHttpClient().newCall(request).execute().use { response ->
             if (!response.isSuccessful) throw IllegalStateException("Model download failed: HTTP ${response.code}")
             val body = response.body ?: throw IllegalStateException("Model download was empty")
-            val expectedLength = body.contentLength()
-
             body.byteStream().use { input ->
                 FileOutputStream(tempFile).use { output ->
-                    val buffer = ByteArray(64 * 1024)
-                    var total = 0L
-                    var read: Int
-                    while (input.read(buffer).also { read = it } != -1) {
-                        if (stopRequested) throw IllegalStateException("Download cancelled")
-                        output.write(buffer, 0, read)
-                        total += read
-                        if (expectedLength > 0) {
-                            val percent = (total * 100 / expectedLength).toInt()
-                            _partialResult.value = "Downloading offline speech model… $percent%"
-                        }
-                    }
-                    output.flush()
+                    input.copyTo(output, bufferSize = 64 * 1024)
+                    output.fd.sync()
                 }
             }
         }
-
         if (tempFile.length() < 50_000_000L) {
             tempFile.delete()
             throw IllegalStateException("Downloaded model is incomplete")

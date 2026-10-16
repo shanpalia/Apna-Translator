@@ -112,10 +112,23 @@ class LanguagePackManager(
     }
 
     fun isLanguagePairAvailable(sourceCode: String, targetCode: String): Boolean {
-        val pairId = "${sourceCode.lowercase()}_${targetCode.lowercase()}"
-        val file = File(modelsDir, "$pairId.json")
+        val source = sourceCode.lowercase()
+        val target = targetCode.lowercase()
+        if (source == target) return true
+        if (hasDirectPair(source, target)) return true
+
+        // For pairs without a direct dictionary, the app can use Hindi as a pivot
+        // only when both real phrase packs are present and valid.
+        if (source != "hi" && target != "hi") {
+            return hasDirectPair(source, "hi") && hasDirectPair("hi", target)
+        }
+        return false
+    }
+
+    private fun hasDirectPair(sourceCode: String, targetCode: String): Boolean {
+        val pairId = "${sourceCode}_${targetCode}"
         val entry = packCatalog.firstOrNull { it.id == pairId } ?: return false
-        return isUsablePack(file, entry.source, entry.target)
+        return isUsablePack(File(modelsDir, "$pairId.json"), entry.source, entry.target)
     }
 
     private fun isUsablePack(file: File, source: String, target: String): Boolean {

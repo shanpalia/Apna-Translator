@@ -108,7 +108,7 @@ fun LanguagesScreen(
         ) {
             Column {
                 Text(
-                    text = "Offline Language Packs",
+                    text = "Offline Phrase Packs",
                     style = MaterialTheme.typography.titleLarge.copy(
                         fontWeight = FontWeight.Bold,
                         fontSize = 20.sp
@@ -116,7 +116,7 @@ fun LanguagesScreen(
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
-                    text = "Local offline translation models storage: $storageFormatted",
+                    text = "Small phrase dictionaries only — not full AI models • storage: $storageFormatted",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -208,7 +208,7 @@ private fun LanguagePackCard(
         val kb = pack.sizeBytes / 1024.0
         if (kb > 1024) String.format("%.2f MB", kb / 1024.0) else String.format("%.1f KB", kb)
     } else {
-        "~25 KB"
+        "Not included"
     }
 
     ElevatedCard(

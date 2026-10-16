@@ -139,7 +139,7 @@ class WhisperSpeechRecognizerEngine(
             return@withContext modelFile
         }
 
-        // Development fallback only. Release workflow packages the model in the APK.
+        // Normal first-run path: download the multilingual model once; keep it on-device for offline use.
         _partialResult.value = "Downloading multilingual offline speech model (one-time setup)…"
         val tempFile = File(dir, "$MODEL_FILE_NAME.part")
         val request = okhttp3.Request.Builder().url(MODEL_URL).build()

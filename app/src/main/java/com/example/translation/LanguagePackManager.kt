@@ -44,27 +44,18 @@ class LanguagePackManager(
 
     // Registry of available packs that can be installed/stored
     private val packCatalog: List<ModelPackCatalogEntry> = listOf(
-        ModelPackCatalogEntry("hi_en", "hi", "en", "Hindi ➔ English", "1.0.0", "Everyday phrases, travel, directions & vocabulary (SOV ➔ SVO)"),
-        ModelPackCatalogEntry("en_hi", "en", "hi", "English ➔ Hindi", "1.0.0", "Everyday phrases, travel, directions & vocabulary (SVO ➔ SOV)"),
-        ModelPackCatalogEntry("hi_ne", "hi", "ne", "Hindi ➔ Nepali", "1.0.0", "Everyday communication & travel vocabulary"),
-        ModelPackCatalogEntry("ne_hi", "ne", "hi", "Nepali ➔ Hindi", "1.0.0", "Everyday communication & travel vocabulary"),
-        ModelPackCatalogEntry("hi_ar", "hi", "ar", "Hindi ➔ Arabic", "1.0.0", "Everyday travel, greetings & RTL vocabulary"),
-        ModelPackCatalogEntry("ar_hi", "ar", "hi", "Arabic ➔ Hindi", "1.0.0", "Arabic RTL greetings & conversation to Hindi"),
-        ModelPackCatalogEntry("hi_ur", "hi", "ur", "Hindi ➔ Urdu", "1.0.0", "Sister-language lexicon, Nastaliq & phrase mapping"),
-        ModelPackCatalogEntry("ur_hi", "ur", "hi", "Urdu ➔ Hindi", "1.0.0", "Urdu RTL phrases to Hindi Devanagari"),
-        ModelPackCatalogEntry("en_ur", "en", "ur", "English ➔ Urdu", "1.0.0", "English to Urdu conversation and lexical pack"),
-        ModelPackCatalogEntry("ur_en", "ur", "en", "Urdu ➔ English", "1.0.0", "Urdu RTL phrases and lexicon to English"),
-        ModelPackCatalogEntry("en_ar", "en", "ar", "English ➔ Arabic", "1.0.0", "English to Arabic travel and conversation pack"),
-        ModelPackCatalogEntry("ar_en", "ar", "en", "Arabic ➔ English", "1.0.0", "Arabic RTL to English conversation pack"),
-        ModelPackCatalogEntry("en_bn", "en", "bn", "English ➔ Bengali", "1.0.0", "English to Bengali vocabulary and phrases"),
-        ModelPackCatalogEntry("bn_en", "bn", "en", "Bengali ➔ English", "1.0.0", "Bengali to English vocabulary and phrases"),
-        ModelPackCatalogEntry("en_mr", "en", "mr", "English ➔ Marathi", "1.0.0", "English to Marathi vocabulary and phrases"),
-        ModelPackCatalogEntry("en_gu", "en", "gu", "English ➔ Gujarati", "1.0.0", "English to Gujarati vocabulary and phrases"),
-        ModelPackCatalogEntry("en_pa", "en", "pa", "English ➔ Punjabi", "1.0.0", "English to Punjabi Gurmukhi phrases"),
-        ModelPackCatalogEntry("en_ta", "en", "ta", "English ➔ Tamil", "1.0.0", "English to Tamil vocabulary and phrases"),
-        ModelPackCatalogEntry("en_te", "en", "te", "English ➔ Telugu", "1.0.0", "English to Telugu vocabulary and phrases"),
-        ModelPackCatalogEntry("en_kn", "en", "kn", "English ➔ Kannada", "1.0.0", "English to Kannada vocabulary and phrases"),
-        ModelPackCatalogEntry("en_ml", "en", "ml", "English ➔ Malayalam", "1.0.0", "English to Malayalam vocabulary and phrases")
+        ModelPackCatalogEntry("hi_en", "hi", "en", "Hindi ➔ English", "1.0.0", "Small local phrase dictionary only; not a full AI translation model."),
+        ModelPackCatalogEntry("en_hi", "en", "hi", "English ➔ Hindi", "1.0.0", "Small local phrase dictionary only; not a full AI translation model."),
+        ModelPackCatalogEntry("hi_ne", "hi", "ne", "Hindi ➔ Nepali", "1.0.0", "Small local phrase dictionary only; not a full AI translation model."),
+        ModelPackCatalogEntry("ne_hi", "ne", "hi", "Nepali ➔ Hindi", "1.0.0", "Small local phrase dictionary only; not a full AI translation model."),
+        ModelPackCatalogEntry("hi_ar", "hi", "ar", "Hindi ➔ Arabic", "1.0.0", "Small local phrase dictionary only; not a full AI translation model."),
+        ModelPackCatalogEntry("ar_hi", "ar", "hi", "Arabic ➔ Hindi", "1.0.0", "Small local phrase dictionary only; not a full AI translation model."),
+        ModelPackCatalogEntry("hi_ur", "hi", "ur", "Hindi ➔ Urdu", "1.0.0", "Small local phrase dictionary only; not a full AI translation model."),
+        ModelPackCatalogEntry("ur_hi", "ur", "hi", "Urdu ➔ Hindi", "1.0.0", "Small local phrase dictionary only; not a full AI translation model."),
+        ModelPackCatalogEntry("en_ur", "en", "ur", "English ➔ Urdu", "1.0.0", "Small local phrase dictionary only; not a full AI translation model."),
+        ModelPackCatalogEntry("ur_en", "ur", "en", "Urdu ➔ English", "1.0.0", "Small local phrase dictionary only; not a full AI translation model."),
+        ModelPackCatalogEntry("en_ar", "en", "ar", "English ➔ Arabic", "1.0.0", "Small local phrase dictionary only; not a full AI translation model."),
+        ModelPackCatalogEntry("ar_en", "ar", "en", "Arabic ➔ English", "1.0.0", "Small local phrase dictionary only; not a full AI translation model."),
     )
 
     data class ModelPackCatalogEntry(
@@ -212,8 +203,8 @@ class LanguagePackManager(
     private fun estimateAssetSize(pairId: String): Long {
         return try {
             context.assets.open("models/translation/$pairId.json").use { it.available().toLong() }
-        } catch (e: Exception) {
-            25000L // default estimate ~25 KB
+        } catch (_: Exception) {
+            0L // Never display a fabricated size for a pack that is not bundled.
         }
     }
 }

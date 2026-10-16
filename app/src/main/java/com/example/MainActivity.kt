@@ -16,11 +16,8 @@ class MainActivity : ComponentActivity() {
     private val viewModel: MainViewModel by viewModels()
 
     private val microphonePermissionLauncher =
-        registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-            // The UI remains available if denied; voice input reports that microphone access is required.
-            if (!granted) {
-                viewModel.onMicrophonePermissionDenied()
-            }
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { _ ->
+            // If denied, voice input remains disabled until the user grants microphone access.
         }
 
     override fun onCreate(savedInstanceState: Bundle?) {

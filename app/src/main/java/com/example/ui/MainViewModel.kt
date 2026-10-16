@@ -42,6 +42,7 @@ class MainViewModel(
     val languagePackManager: LanguagePackManager
     val translationEngine: TranslationEngine
     val speechEngine: SpeechRecognizerEngine
+    private val whisperSpeechEngine: WhisperSpeechRecognizerEngine
     val ttsEngine: OfflineTtsEngine
     val networkMonitor: NetworkMonitor
 
@@ -50,7 +51,8 @@ class MainViewModel(
         historyRepository = HistoryRepository(db.historyDao())
         languagePackManager = LanguagePackManager(application)
         translationEngine = OfflineTranslationEngine(languagePackManager)
-        speechEngine = WhisperSpeechRecognizerEngine(application)
+        whisperSpeechEngine = WhisperSpeechRecognizerEngine(application)
+        speechEngine = whisperSpeechEngine
         ttsEngine = AndroidOfflineTtsEngine(application)
         networkMonitor = NetworkMonitor(application)
 
@@ -133,6 +135,14 @@ class MainViewModel(
     val totalStorageBytes: StateFlow<Long> = languagePackManager.totalStorageBytes
     val isOffline: StateFlow<Boolean> = networkMonitor.isOffline
     val simulateOffline: StateFlow<Boolean> = networkMonitor.simulateOffline
+
+    val modelDownloadStatus: StateFlow<String?> = whisperSpeechEngine.modelDownloadStatus
+
+    fun isSpeechModelDownloaded(): Boolean = whisperSpeechEngine.isSpeechModelDownloaded()
+
+    fun downloadSpeechModel() {
+        whisperSpeechEngine.downloadSpeechModel()
+    }
 
     fun setSourceLanguage(language: Language) {
         _sourceLanguage.value = language

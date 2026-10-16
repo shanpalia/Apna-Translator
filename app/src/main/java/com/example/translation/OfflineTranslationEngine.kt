@@ -63,6 +63,14 @@ class OfflineTranslationEngine(
             if (modelFile != null && modelFile.exists() && modelFile.length() > 0L) {
                 val model = loadOrGetModel(pairId, modelFile)
                 val translated = translateWithModel(trimmed, model)
+                if (translated.untranslated.isNotEmpty() &&
+                    translated.untranslated.size >= tokenize(trimmed).size &&
+                    !source.code.equals(target.code, ignoreCase = true)
+                ) {
+                    return@withContext TranslationResult.Error(
+                        "The offline pack does not know this phrase, so it cannot translate it reliably. The speech text was recognized, but a real translation model or a supported phrase is needed."
+                    )
+                }
                 return@withContext TranslationResult.Success(
                     sourceText = trimmed,
                     translatedText = translated.resultText,
@@ -81,12 +89,21 @@ class OfflineTranslationEngine(
                 if (firstFile != null && secondFile != null) {
                     val first = translateWithModel(trimmed, loadOrGetModel(firstId, firstFile))
                     val second = translateWithModel(first.resultText, loadOrGetModel(secondId, secondFile))
+                    val unknown = (first.untranslated + second.untranslated).distinct()
+                    if (unknown.isNotEmpty() &&
+                        first.untranslated.size >= tokenize(trimmed).size &&
+                        !source.code.equals(target.code, ignoreCase = true)
+                    ) {
+                        return@withContext TranslationResult.Error(
+                            "The installed offline phrase packs do not cover this sentence. The app recognized speech but cannot translate it reliably offline."
+                        )
+                    }
                     return@withContext TranslationResult.Success(
                         sourceText = trimmed,
                         translatedText = second.resultText,
                         sourceLang = source,
                         targetLang = target,
-                        untranslatedTokens = (first.untranslated + second.untranslated).distinct()
+                        untranslatedTokens = unknown
                     )
                 }
             }

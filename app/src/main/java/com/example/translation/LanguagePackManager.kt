@@ -161,22 +161,21 @@ class LanguagePackManager(
             } else {
                 // Generate a synthesized baseline model package for this pair if not in assets
                 val catalogEntry = packCatalog.firstOrNull { it.id == pairId }
-                if (catalogEntry != null) {
-                    val fallbackJson = JSONObject().apply {
-                        put("id", catalogEntry.id)
-                        put("source", catalogEntry.source)
-                        put("target", catalogEntry.target)
-                        put("version", catalogEntry.version)
-                        put("name", catalogEntry.title)
-                        put("phrases", JSONObject())
-                        put("lexicon", JSONObject())
-                    }
-                    targetFile.writeText(fallbackJson.toString(2))
+                    ?: return@withContext false
+                val fallbackJson = JSONObject().apply {
+                    put("id", catalogEntry.id)
+                    put("source", catalogEntry.source)
+                    put("target", catalogEntry.target)
+                    put("version", catalogEntry.version)
+                    put("name", catalogEntry.title)
+                    put("phrases", JSONObject())
+                    put("lexicon", JSONObject())
                 }
+                targetFile.writeText(fallbackJson.toString(2))
             }
 
             refreshInstalledPacks()
-            true
+            targetFile.exists() && targetFile.length() > 0L
         } catch (e: Exception) {
             Log.e(TAG, "Failed to install pack $pairId: ${e.message}", e)
             false

@@ -7,7 +7,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
-import org.json.JSONObject
 import java.io.File
 
 data class ModelPackInfo(
@@ -83,7 +82,9 @@ class LanguagePackManager(
         val corePairs = listOf("hi_en", "en_hi", "hi_ne", "ne_hi", "hi_ar", "ar_hi", "hi_ur", "ur_hi")
         for (pair in corePairs) {
             val file = File(modelsDir, "$pair.json")
-            if (!file.exists() || file.length() == 0L) {
+            val entry = packCatalog.firstOrNull { it.id == pair }
+            if (entry != null && !isUsablePack(file, entry.source, entry.target)) {
+                file.delete()
                 installLanguagePack(pair)
             }
         }
@@ -96,7 +97,7 @@ class LanguagePackManager(
 
         for (entry in packCatalog) {
             val file = File(modelsDir, "${entry.id}.json")
-            val isInstalled = file.exists() && file.length() > 0
+            val isInstalled = isUsablePack(file, entry.source, entry.target)
             val size = if (isInstalled) file.length() else estimateAssetSize(entry.id)
             if (isInstalled) {
                 totalBytes += size
@@ -122,7 +123,17 @@ class LanguagePackManager(
     fun isLanguagePairAvailable(sourceCode: String, targetCode: String): Boolean {
         val pairId = "${sourceCode.lowercase()}_${targetCode.lowercase()}"
         val file = File(modelsDir, "$pairId.json")
-        return file.exists() && file.length() > 0
+        val entry = packCatalog.firstOrNull { it.id == pairId } ?: return false
+        return isUsablePack(file, entry.source, entry.target)
+    }
+
+    private fun isUsablePack(file: File, source: String, target: String): Boolean {
+        if (!file.exists() || file.length() <= 0L) return false
+        return try {
+            val json = org.json.JSONObject(file.readText(Charsets.UTF_8))
+            json.optString("source") == source && json.optString("target") == target &&
+                ((json.optJSONObject("phrases")?.length() ?: 0) + (json.optJSONObject("lexicon")?.length() ?: 0) > 0)
+        } catch (_: Exception) { false }
     }
 
     fun getInstalledLanguages(): Set<String> {
@@ -152,30 +163,33 @@ class LanguagePackManager(
                 false
             }
 
-            if (assetExists) {
-                context.assets.open(assetPath).use { input ->
-                    targetFile.outputStream().use { output ->
-                        input.copyTo(output)
-                    }
-                }
-            } else {
-                // Generate a synthesized baseline model package for this pair if not in assets
-                val catalogEntry = packCatalog.firstOrNull { it.id == pairId }
-                    ?: return@withContext false
-                val fallbackJson = JSONObject().apply {
-                    put("id", catalogEntry.id)
-                    put("source", catalogEntry.source)
-                    put("target", catalogEntry.target)
-                    put("version", catalogEntry.version)
-                    put("name", catalogEntry.title)
-                    put("phrases", JSONObject())
-                    put("lexicon", JSONObject())
-                }
-                targetFile.writeText(fallbackJson.toString(2))
+            if (!assetExists) {
+                // Do not create an empty pack and falsely report that translation is available.
+                targetFile.delete()
+                refreshInstalledPacks()
+                return@withContext false
+            }
+
+            val tempFile = File(modelsDir, "$pairId.json.part")
+            context.assets.open(assetPath).use { input ->
+                tempFile.outputStream().use { output -> input.copyTo(output) }
+            }
+            val entry = packCatalog.firstOrNull { it.id == pairId }
+                ?: run { tempFile.delete(); return@withContext false }
+            if (!isUsablePack(tempFile, entry.source, entry.target)) {
+                tempFile.delete()
+                targetFile.delete()
+                refreshInstalledPacks()
+                return@withContext false
+            }
+            if (targetFile.exists()) targetFile.delete()
+            if (!tempFile.renameTo(targetFile)) {
+                tempFile.copyTo(targetFile, overwrite = true)
+                tempFile.delete()
             }
 
             refreshInstalledPacks()
-            targetFile.exists() && targetFile.length() > 0L
+            isUsablePack(targetFile, entry.source, entry.target)
         } catch (e: Exception) {
             Log.e(TAG, "Failed to install pack $pairId: ${e.message}", e)
             false

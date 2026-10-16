@@ -68,7 +68,7 @@ class WhisperSpeechRecognizerEngine(
             return
         }
         scope.launch {
-            _modelDownloadStatus.value = "Downloading speech model (~142 MB). Keep internet connected…"
+            _modelDownloadStatus.value = "Starting speech model download… keep internet connected."
             try {
                 ensureModel()
                 _modelDownloadStatus.value = "Speech model downloaded. Voice recognition is ready offline."
@@ -170,9 +170,32 @@ class WhisperSpeechRecognizerEngine(
         okhttp3.OkHttpClient().newCall(request).execute().use { response ->
             if (!response.isSuccessful) throw IllegalStateException("Model download failed: HTTP ${response.code}")
             val body = response.body ?: throw IllegalStateException("Model download was empty")
+            val totalBytes = body.contentLength()
+            val startedAt = System.currentTimeMillis()
+            var downloadedBytes = 0L
+            var lastUiUpdate = startedAt
+            val buffer = ByteArray(64 * 1024)
             body.byteStream().use { input ->
                 FileOutputStream(tempFile).use { output ->
-                    input.copyTo(output, bufferSize = 64 * 1024)
+                    while (true) {
+                        val count = input.read(buffer)
+                        if (count < 0) break
+                        output.write(buffer, 0, count)
+                        downloadedBytes += count
+                        val now = System.currentTimeMillis()
+                        if (now - lastUiUpdate >= 500L) {
+                            val elapsedSeconds = ((now - startedAt).coerceAtLeast(1L)) / 1000.0
+                            val speedBytesPerSecond = downloadedBytes / elapsedSeconds
+                            val downloadedText = formatBytes(downloadedBytes)
+                            val totalText = if (totalBytes > 0L) formatBytes(totalBytes) else "unknown size"
+                            val speedText = formatBytes(speedBytesPerSecond.toLong()) + "/s"
+                            val percentText = if (totalBytes > 0L) " • ${(downloadedBytes * 100 / totalBytes).coerceIn(0L, 100L)}%" else ""
+                            _modelDownloadStatus.value =
+                                "Downloading speech model: $downloadedText / $totalText$percentText • $speedText"
+                            _partialResult.value = _modelDownloadStatus.value.orEmpty()
+                            lastUiUpdate = now
+                        }
+                    }
                     output.fd.sync()
                 }
             }
@@ -359,6 +382,13 @@ class WhisperSpeechRecognizerEngine(
     override fun release() {
         cancel()
         scope.cancel()
+    }
+
+    private fun formatBytes(bytes: Long): String {
+        if (bytes < 1024L) return "$bytes B"
+        val kb = bytes / 1024.0
+        if (kb < 1024.0) return String.format(java.util.Locale.US, "%.1f KB", kb)
+        return String.format(java.util.Locale.US, "%.1f MB", kb / 1024.0)
     }
 
     private fun matchesSelectedLanguageScript(text: String, languageCode: String): Boolean {

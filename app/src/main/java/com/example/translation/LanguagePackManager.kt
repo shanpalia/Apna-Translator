@@ -47,8 +47,8 @@ class LanguagePackManager(
     private val packCatalog: List<ModelPackCatalogEntry> = listOf(
         ModelPackCatalogEntry("hi_en", "hi", "en", "Hindi ➔ English", "1.0.0", "Everyday phrases, travel, directions & vocabulary (SOV ➔ SVO)"),
         ModelPackCatalogEntry("en_hi", "en", "hi", "English ➔ Hindi", "1.0.0", "Everyday phrases, travel, directions & vocabulary (SVO ➔ SOV)"),
-        ModelPackCatalogEntry("hi_ne", "ne", "hi", "Hindi ➔ Nepali", "1.0.0", "Everyday communication & travel vocabulary"),
-        ModelPackCatalogEntry("ne_hi", "hi", "ne", "Nepali ➔ Hindi", "1.0.0", "Everyday communication & travel vocabulary"),
+        ModelPackCatalogEntry("hi_ne", "hi", "ne", "Hindi ➔ Nepali", "1.0.0", "Everyday communication & travel vocabulary"),
+        ModelPackCatalogEntry("ne_hi", "ne", "hi", "Nepali ➔ Hindi", "1.0.0", "Everyday communication & travel vocabulary"),
         ModelPackCatalogEntry("hi_ar", "hi", "ar", "Hindi ➔ Arabic", "1.0.0", "Everyday travel, greetings & RTL vocabulary"),
         ModelPackCatalogEntry("ar_hi", "ar", "hi", "Arabic ➔ Hindi", "1.0.0", "Arabic RTL greetings & conversation to Hindi"),
         ModelPackCatalogEntry("hi_ur", "hi", "ur", "Hindi ➔ Urdu", "1.0.0", "Sister-language lexicon, Nastaliq & phrase mapping"),
@@ -78,12 +78,12 @@ class LanguagePackManager(
     )
 
     suspend fun initialize() = withContext(Dispatchers.IO) {
-        // Auto-install bundled core packs if directory is empty
-        val existingFiles = modelsDir.listFiles()?.filter { it.extension == "json" } ?: emptyList()
-        if (existingFiles.isEmpty()) {
-            // Install the core language pairs by default so app is immediately functional offline!
-            val corePairs = listOf("hi_en", "en_hi", "hi_ne", "ne_hi", "hi_ar", "ar_hi", "hi_ur", "ur_hi")
-            for (pair in corePairs) {
+        // Repair/install each core pair independently. One existing JSON file must not
+        // prevent the other core pairs from being initialized.
+        val corePairs = listOf("hi_en", "en_hi", "hi_ne", "ne_hi", "hi_ar", "ar_hi", "hi_ur", "ur_hi")
+        for (pair in corePairs) {
+            val file = File(modelsDir, "$pair.json")
+            if (!file.exists() || file.length() == 0L) {
                 installLanguagePack(pair)
             }
         }

@@ -7,6 +7,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.activity.result.contract.ActivityResultContracts
 import com.example.ui.MainScreen
 import com.example.ui.MainViewModel
 import com.example.ui.theme.ApnaTranslatorTheme
@@ -14,19 +15,27 @@ import com.example.ui.theme.ApnaTranslatorTheme
 class MainActivity : ComponentActivity() {
     private val viewModel: MainViewModel by viewModels()
 
+    private val microphonePermissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+            // The UI remains available if denied; voice input reports that microphone access is required.
+            if (!granted) {
+                viewModel.onMicrophonePermissionDenied()
+            }
+        }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-
-        // Request microphone access before starting offline Whisper recording.
-        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-            requestPermissions(arrayOf(Manifest.permission.RECORD_AUDIO), 1001)
-        }
         setContent {
             ApnaTranslatorTheme {
                 MainScreen(viewModel = viewModel)
             }
         }
+
+        // Microphone is the only runtime permission this app currently needs.
+        // No storage permission is required for app-private files on modern Android.
+        if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
+            microphonePermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+        }
     }
 }
-

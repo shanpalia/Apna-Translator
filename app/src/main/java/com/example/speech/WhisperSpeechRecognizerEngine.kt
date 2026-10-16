@@ -36,9 +36,9 @@ class WhisperSpeechRecognizerEngine(
         private const val SAMPLE_RATE = 16_000
         private const val CHANNEL_COUNT = 1
         private const val BYTES_PER_SAMPLE = 2
-        private const val MODEL_FILE_NAME = "ggml-tiny.bin"
+        private const val MODEL_FILE_NAME = "ggml-base.bin"
         private const val MODEL_URL =
-            "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin?download=true"
+            "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin?download=true"
     }
 
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -98,7 +98,7 @@ class WhisperSpeechRecognizerEngine(
                     _isListening.value = false
                     _rmsDb.value = 0f
                     _errorMessage.value =
-                        "Offline speech model could not be prepared. Connect to the internet once to download the 75 MB multilingual model. After that, speech recognition works offline for supported languages."
+                        "Offline speech model could not be prepared. Connect to the internet once to download the approximately 142 MB multilingual base model. After that, speech recognition works offline for supported languages."
                 }
             }
         }
@@ -111,7 +111,7 @@ class WhisperSpeechRecognizerEngine(
 
         val modelFile = File(dir, MODEL_FILE_NAME)
         if (modelFile.exists() && modelFile.length() > 50_000_000L) {
-            File(dir, "ggml-base.bin").delete()
+            File(dir, "ggml-tiny.bin").delete()
             return@synchronized modelFile
         }
 
@@ -162,7 +162,7 @@ class WhisperSpeechRecognizerEngine(
             tempFile.copyTo(modelFile, overwrite = true)
             tempFile.delete()
         }
-        File(dir, "ggml-base.bin").delete()
+        File(dir, "ggml-tiny.bin").delete()
         modelFile
       }
     }
@@ -266,10 +266,13 @@ class WhisperSpeechRecognizerEngine(
                     withContext(Dispatchers.Main) {
                         _isListening.value = false
                         _rmsDb.value = 0f
-                        if (text.isNotBlank()) {
+                        if (text.isNotBlank() && matchesSelectedLanguageScript(text, currentLanguageCode)) {
                             _finalResult.value = text
                             _partialResult.value = text
                             _errorMessage.value = null
+                        } else if (text.isNotBlank()) {
+                            _partialResult.value = ""
+                            _errorMessage.value = "Speech recognition returned text in the wrong script for the selected language. Check the language and try again."
                         } else {
                             _partialResult.value = ""
                             _errorMessage.value = "Speech could not be recognized. Please try again."
@@ -332,6 +335,25 @@ class WhisperSpeechRecognizerEngine(
     override fun release() {
         cancel()
         scope.cancel()
+    }
+
+    private fun matchesSelectedLanguageScript(text: String, languageCode: String): Boolean {
+        val letters = text.filter { it.isLetter() }
+        if (letters.isEmpty()) return false
+        val expectedScript = when (languageCode.lowercase()) {
+            "hi", "ne", "mr" -> Character.UnicodeScript.DEVANAGARI
+            "ar", "ur" -> Character.UnicodeScript.ARABIC
+            "bn" -> Character.UnicodeScript.BENGALI
+            "pa" -> Character.UnicodeScript.GURMUKHI
+            "ta" -> Character.UnicodeScript.TAMIL
+            "te" -> Character.UnicodeScript.TELUGU
+            "kn" -> Character.UnicodeScript.KANNADA
+            "ml" -> Character.UnicodeScript.MALAYALAM
+            "gu" -> Character.UnicodeScript.GUJARATI
+            else -> null
+        } ?: return true
+        val matching = letters.count { Character.UnicodeScript.of(it.code) == expectedScript }
+        return matching.toDouble() / letters.size >= 0.6
     }
 
     private fun writeWavHeader(file: File, dataBytes: Long) {

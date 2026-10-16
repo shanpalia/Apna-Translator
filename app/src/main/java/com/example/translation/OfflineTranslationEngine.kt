@@ -59,23 +59,42 @@ class OfflineTranslationEngine(
         val pairId = "${source.code.lowercase()}_${target.code.lowercase()}"
         val modelFile = languagePackManager.getModelFile(pairId)
 
-        if (modelFile == null || !modelFile.exists() || modelFile.length() == 0L) {
+        try {
+            if (modelFile != null && modelFile.exists() && modelFile.length() > 0L) {
+                val model = loadOrGetModel(pairId, modelFile)
+                val translated = translateWithModel(trimmed, model)
+                return@withContext TranslationResult.Success(
+                    sourceText = trimmed,
+                    translatedText = translated.resultText,
+                    sourceLang = source,
+                    targetLang = target,
+                    untranslatedTokens = translated.untranslated
+                )
+            }
+
+            // No direct pack: try a two-step route through Hindi if both packs exist.
+            if (!source.code.equals("hi", true) && !target.code.equals("hi", true)) {
+                val firstId = "${source.code.lowercase()}_hi"
+                val secondId = "hi_${target.code.lowercase()}"
+                val firstFile = languagePackManager.getModelFile(firstId)
+                val secondFile = languagePackManager.getModelFile(secondId)
+                if (firstFile != null && secondFile != null) {
+                    val first = translateWithModel(trimmed, loadOrGetModel(firstId, firstFile))
+                    val second = translateWithModel(first.resultText, loadOrGetModel(secondId, secondFile))
+                    return@withContext TranslationResult.Success(
+                        sourceText = trimmed,
+                        translatedText = second.resultText,
+                        sourceLang = source,
+                        targetLang = target,
+                        untranslatedTokens = (first.untranslated + second.untranslated).distinct()
+                    )
+                }
+            }
+
             return@withContext TranslationResult.MissingModel(
                 sourceLang = source,
                 targetLang = target,
-                message = "Offline translation model for ${source.name} → ${target.name} is not installed."
-            )
-        }
-
-        try {
-            val model = loadOrGetModel(pairId, modelFile)
-            val translated = translateWithModel(trimmed, model)
-            return@withContext TranslationResult.Success(
-                sourceText = trimmed,
-                translatedText = translated.resultText,
-                sourceLang = source,
-                targetLang = target,
-                untranslatedTokens = translated.untranslated
+                message = "Offline translation packs for ${source.name} → ${target.name} are not installed."
             )
         } catch (e: Exception) {
             Log.e(TAG, "Translation error for $pairId: ${e.message}", e)

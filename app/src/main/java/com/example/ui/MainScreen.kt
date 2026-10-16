@@ -22,6 +22,9 @@ import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Translate
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -30,6 +33,7 @@ import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -58,6 +62,14 @@ fun MainScreen(
     var showTranslatorFromHome by remember { mutableStateOf(false) }
     val selectedTab by viewModel.selectedTab.collectAsState()
     val isOffline by viewModel.isOffline.collectAsState()
+    val modelDownloadStatus by viewModel.modelDownloadStatus.collectAsState()
+    var showModelDialog by remember { mutableStateOf(false) }
+
+    LaunchedEffect(showSplash) {
+        if (!showSplash && !viewModel.isSpeechModelDownloaded()) {
+            showModelDialog = true
+        }
+    }
 
     // Back navigation stays inside the app on secondary screens.
     // On Home, the Android system handles Back normally and exits the app.
@@ -156,6 +168,48 @@ fun MainScreen(
                     }
                 }
             }
+        }
+
+        if (showModelDialog) {
+            AlertDialog(
+                onDismissRequest = { showModelDialog = false },
+                title = { Text("Download offline speech model?") },
+                text = {
+                    Text(
+                        modelDownloadStatus
+                            ?: "Apna Translator needs a one-time download of about 142 MB for offline voice recognition. Connect to Wi-Fi if possible. After download, speech recognition can work without internet."
+                    )
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            if (viewModel.isSpeechModelDownloaded()) {
+                                showModelDialog = false
+                            } else {
+                                viewModel.downloadSpeechModel()
+                            }
+                        },
+                        enabled = modelDownloadStatus?.startsWith("Downloading") != true
+                    ) {
+                        Text(
+                            when {
+                                viewModel.isSpeechModelDownloaded() -> "Done"
+                                modelDownloadStatus?.startsWith("Download failed") == true -> "Retry download"
+                                modelDownloadStatus?.startsWith("Speech model downloaded") == true -> "Done"
+                                else -> "Download model"
+                            }
+                        )
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = { showModelDialog = false },
+                        enabled = modelDownloadStatus?.startsWith("Downloading") != true
+                    ) {
+                        Text("Later")
+                    }
+                }
+            )
         }
     }
 }

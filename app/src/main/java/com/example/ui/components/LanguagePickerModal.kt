@@ -130,6 +130,13 @@ fun LanguagePickerModal(
                 }
             }
 
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = "Speech model download enables voice recognition. Translation packs are separate and are required for offline translation between a language pair.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
             Spacer(modifier = Modifier.height(14.dp))
 
             // Search Box
@@ -295,13 +302,13 @@ private fun LanguageItemRow(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Check,
-                                contentDescription = "Offline Ready",
+                                contentDescription = "Phrase pack available",
                                 tint = SuccessGreen,
                                 modifier = Modifier.size(14.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
-                                text = "Offline Ready",
+                                text = "Phrase pack available",
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     fontWeight = FontWeight.SemiBold,
                                     fontSize = 10.sp
@@ -321,13 +328,13 @@ private fun LanguageItemRow(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Warning,
-                                contentDescription = "Pack Required",
+                                contentDescription = "Translation pack required",
                                 tint = WarningOrange,
                                 modifier = Modifier.size(14.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
-                                text = "Pack Required",
+                                text = "Translation pack needed",
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     fontWeight = FontWeight.SemiBold,
                                     fontSize = 10.sp

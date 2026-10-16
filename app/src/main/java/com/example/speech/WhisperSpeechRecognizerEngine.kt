@@ -54,6 +54,30 @@ class WhisperSpeechRecognizerEngine(
     override val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
     private val _rmsDb = MutableStateFlow(0f)
     override val rmsDb: StateFlow<Float> = _rmsDb.asStateFlow()
+    private val _modelDownloadStatus = MutableStateFlow<String?>(null)
+    val modelDownloadStatus: StateFlow<String?> = _modelDownloadStatus.asStateFlow()
+
+    fun isSpeechModelDownloaded(): Boolean {
+        val model = File(File(context.getExternalFilesDir("models"), "whisper"), MODEL_FILE_NAME)
+        return model.exists() && model.length() > 50_000_000L
+    }
+
+    fun downloadSpeechModel() {
+        if (isSpeechModelDownloaded()) {
+            _modelDownloadStatus.value = "Speech model is already downloaded."
+            return
+        }
+        scope.launch {
+            _modelDownloadStatus.value = "Downloading speech model (~142 MB). Keep internet connected…"
+            try {
+                ensureModel()
+                _modelDownloadStatus.value = "Speech model downloaded. Voice recognition is ready offline."
+            } catch (e: Exception) {
+                Log.e(TAG, "Speech model download failed", e)
+                _modelDownloadStatus.value = "Download failed. Check internet and tap Download to retry."
+            }
+        }
+    }
 
     private var audioRecord: AudioRecord? = null
     private var recordingThread: Thread? = null

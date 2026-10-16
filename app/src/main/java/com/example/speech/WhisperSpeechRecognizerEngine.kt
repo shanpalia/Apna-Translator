@@ -36,12 +36,13 @@ class WhisperSpeechRecognizerEngine(
         private const val SAMPLE_RATE = 16_000
         private const val CHANNEL_COUNT = 1
         private const val BYTES_PER_SAMPLE = 2
-        private const val MODEL_FILE_NAME = "ggml-base.bin"
+        private const val MODEL_FILE_NAME = "ggml-tiny.bin"
         private const val MODEL_URL =
-            "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin?download=true"
+            "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-tiny.bin?download=true"
     }
 
     private val mainHandler = Handler(Looper.getMainLooper())
+    private val modelLock = Any()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val _isListening = MutableStateFlow(false)
     override val isListening: StateFlow<Boolean> = _isListening.asStateFlow()
@@ -97,21 +98,25 @@ class WhisperSpeechRecognizerEngine(
                     _isListening.value = false
                     _rmsDb.value = 0f
                     _errorMessage.value =
-                        "Offline speech model could not be prepared. Connect to the internet once to download the 142 MB speech model, then try again."
+                        "Offline speech model could not be prepared. Connect to the internet once to download the 75 MB multilingual model. After that, speech recognition works offline for supported languages."
                 }
             }
         }
     }
 
     private suspend fun ensureModel(): File = withContext(Dispatchers.IO) {
+      synchronized(modelLock) {
         val dir = File(context.getExternalFilesDir("models"), "whisper")
         if (!dir.exists() && !dir.mkdirs()) throw IllegalStateException("Unable to create model directory")
 
         val modelFile = File(dir, MODEL_FILE_NAME)
-        if (modelFile.exists() && modelFile.length() > 50_000_000L) return@withContext modelFile
+        if (modelFile.exists() && modelFile.length() > 50_000_000L) {
+            File(dir, "ggml-base.bin").delete()
+            return@synchronized modelFile
+        }
 
-        // The release APK bundles the multilingual model in assets, so users do not
-        // need to download a separate speech model for each language or on first launch.
+        // Optional bundled model support for developer builds. The normal APK downloads the
+        // smaller multilingual tiny model once, then reuses it for every selected language.
         val bundledModel = runCatching { context.assets.open(MODEL_FILE_NAME) }.getOrNull()
         if (bundledModel != null) {
             _partialResult.value = "Preparing built-in offline speech model…"
@@ -135,7 +140,7 @@ class WhisperSpeechRecognizerEngine(
         }
 
         // Development fallback only. Release workflow packages the model in the APK.
-        _partialResult.value = "Built-in model missing; downloading speech model…"
+        _partialResult.value = "Downloading multilingual offline speech model (one-time setup)…"
         val tempFile = File(dir, "$MODEL_FILE_NAME.part")
         val request = okhttp3.Request.Builder().url(MODEL_URL).build()
         okhttp3.OkHttpClient().newCall(request).execute().use { response ->
@@ -157,7 +162,9 @@ class WhisperSpeechRecognizerEngine(
             tempFile.copyTo(modelFile, overwrite = true)
             tempFile.delete()
         }
+        File(dir, "ggml-base.bin").delete()
         modelFile
+      }
     }
 
     private suspend fun startRecording(modelFile: File) {

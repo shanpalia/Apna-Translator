@@ -147,8 +147,9 @@ class LanguagePackManager(
     }
 
     fun getModelFile(pairId: String): File? {
+        val entry = packCatalog.firstOrNull { it.id == pairId } ?: return null
         val file = File(modelsDir, "$pairId.json")
-        return if (file.exists()) file else null
+        return file.takeIf { isUsablePack(it, entry.source, entry.target) }
     }
 
     suspend fun installLanguagePack(pairId: String): Boolean = withContext(Dispatchers.IO) {

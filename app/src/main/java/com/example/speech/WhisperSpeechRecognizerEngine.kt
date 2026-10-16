@@ -377,7 +377,7 @@ class WhisperSpeechRecognizerEngine(
             else -> null
         } ?: return true
         val matching = letters.count { Character.UnicodeScript.of(it.code) == expectedScript }
-        return matching.toDouble() / letters.size >= 0.6
+        return matching.toDouble() / letters.length >= 0.6
     }
 
     private fun writeWavHeader(file: File, dataBytes: Long) {

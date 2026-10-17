@@ -63,13 +63,6 @@ class MainViewModel(
             languagePackManager.initialize()
         }
 
-        // Translate typed text automatically after a short pause.
-        viewModelScope.launch {
-            sourceText.debounce(450).distinctUntilChanged().collect { text ->
-                if (text.isNotBlank()) translateText(text)
-            }
-        }
-
         // Collect final recognized speech results
         viewModelScope.launch {
             speechEngine.finalResult.collect { result ->
@@ -98,6 +91,16 @@ class MainViewModel(
     // Text & Translation
     private val _sourceText = MutableStateFlow("")
     val sourceText: StateFlow<String> = _sourceText.asStateFlow()
+
+    // This collector must be started only after sourceText is initialized; starting it
+    // in the earlier init block caused a startup crash on app launch.
+    init {
+        viewModelScope.launch {
+            sourceText.debounce(450).distinctUntilChanged().collect { text ->
+                if (text.isNotBlank()) translateText(text)
+            }
+        }
+    }
 
     private val _translatedText = MutableStateFlow("")
     val translatedText: StateFlow<String> = _translatedText.asStateFlow()

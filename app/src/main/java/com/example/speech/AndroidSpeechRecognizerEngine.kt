@@ -83,7 +83,7 @@ class AndroidSpeechRecognizerEngine(
                 if (!SpeechRecognizer.isRecognitionAvailable(context)) {
                     _errorMessage.value = "Speech recognition service is not available on this device."
                     _isListening.value = false
-                    return@post
+                    return
                 }
 
                 // Cleanup any existing recognizer before creating a new session.
@@ -100,7 +100,7 @@ class AndroidSpeechRecognizerEngine(
                     _errorMessage.value =
                         "Offline speech recognition is not available on this device. Install the offline language model in your system speech settings."
                     _isListening.value = false
-                    return@post
+                    return
                 }
 
                 speechRecognizer = if (onDeviceAvailable) {
@@ -111,7 +111,7 @@ class AndroidSpeechRecognizerEngine(
                         _errorMessage.value =
                             "Unable to start on-device speech recognition. Please check your device's speech recognition service."
                         _isListening.value = false
-                        return@post
+                        return
                     }
                 } else {
                     SpeechRecognizer.createSpeechRecognizer(context)
@@ -229,7 +229,14 @@ class AndroidSpeechRecognizerEngine(
                     }
                     speechRecognizer = null
                 }
-                scheduleRestart()
+                if (errorCode == SpeechRecognizer.ERROR_SERVER_DISCONNECTED ||
+                    errorCode == SpeechRecognizer.ERROR_NETWORK ||
+                    errorCode == SpeechRecognizer.ERROR_NETWORK_TIMEOUT
+                ) {
+                    scheduleRestart()
+                } else {
+                    continuousListening = false
+                }
             }
 
             override fun onResults(results: Bundle?) {

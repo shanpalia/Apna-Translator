@@ -11,6 +11,7 @@ on:
       - main
       - master
       - feature/real-offline-translation
+      - fix/live-voice-and-language-status
 
 jobs:
   build:

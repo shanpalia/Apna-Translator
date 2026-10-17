@@ -272,10 +272,10 @@ fun TranslateScreen(
             onStopClick = { viewModel.stopListening() }
         )
 
-        Row(
+        // Voice controls: full-width Start, with Pause and Stop on the row below.
+        Column(
             modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically
+            verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Button(
                 onClick = {
@@ -285,41 +285,49 @@ fun TranslateScreen(
                     }
                 },
                 enabled = !isListening,
-                modifier = Modifier.weight(1f)
+                modifier = Modifier.fillMaxWidth().height(52.dp)
             ) {
                 Icon(Icons.Default.PlayArrow, contentDescription = null)
-                Spacer(Modifier.width(4.dp))
-                Text("Start")
+                Spacer(Modifier.width(8.dp))
+                Text("Start", maxLines = 1)
             }
-            FilledTonalButton(
-                onClick = {
-                    if (isPaused) {
-                        viewModel.speechEngine.resumeListening()
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                FilledTonalButton(
+                    onClick = {
+                        if (isPaused) {
+                            viewModel.speechEngine.resumeListening()
+                            isPaused = false
+                        } else {
+                            viewModel.speechEngine.pauseListening()
+                            isPaused = true
+                        }
+                    },
+                    enabled = isListening,
+                    modifier = Modifier.weight(1f).height(50.dp)
+                ) {
+                    Icon(if (isPaused) Icons.Default.PlayArrow else Icons.Default.Pause, contentDescription = null)
+                    Spacer(Modifier.width(6.dp))
+                    Text(if (isPaused) "Resume" else "Pause", maxLines = 1)
+                }
+
+                Button(
+                    onClick = {
+                        viewModel.stopListening()
                         isPaused = false
-                    } else {
-                        viewModel.speechEngine.pauseListening()
-                        isPaused = true
-                    }
-                },
-                enabled = isListening,
-                modifier = Modifier.weight(1f)
-            ) {
-                Icon(if (isPaused) Icons.Default.PlayArrow else Icons.Default.Pause, contentDescription = null)
-                Spacer(Modifier.width(4.dp))
-                Text(if (isPaused) "Resume" else "Pause")
-            }
-            Button(
-                onClick = {
-                    viewModel.stopListening()
-                    isPaused = false
-                },
-                enabled = isListening,
-                modifier = Modifier.weight(1f),
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
-            ) {
-                Icon(Icons.Default.Stop, contentDescription = null)
-                Spacer(Modifier.width(4.dp))
-                Text("Stop")
+                    },
+                    enabled = isListening,
+                    modifier = Modifier.weight(1f).height(50.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                ) {
+                    Icon(Icons.Default.Stop, contentDescription = null)
+                    Spacer(Modifier.width(6.dp))
+                    Text("Stop", maxLines = 1)
+                }
             }
         }
 

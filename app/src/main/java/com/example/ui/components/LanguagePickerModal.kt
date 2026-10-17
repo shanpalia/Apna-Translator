@@ -49,6 +49,7 @@ import androidx.compose.ui.unit.sp
 import com.example.model.Language
 import com.example.model.SupportedLanguages
 import com.example.translation.LanguagePackManager
+import com.google.mlkit.nl.translate.TranslateLanguage
 import com.example.ui.theme.MintPrimary
 import com.example.ui.theme.MintPrimaryDark
 import com.example.ui.theme.OceanBlue
@@ -220,12 +221,14 @@ fun LanguagePickerModal(
                 items(filteredLanguages) { lang ->
                     val isSelected = lang.code == currentSelected.code
 
-                    // Determine genuine availability based on installed translation model pair
-                    val isPairAvailable = if (isSourceSelection) {
-                        languagePackManager.isLanguagePairAvailable(lang.code, otherSelected.code) || lang.code == otherSelected.code
-                    } else {
-                        languagePackManager.isLanguagePairAvailable(otherSelected.code, lang.code) || lang.code == otherSelected.code
-                    }
+                    // ML Kit downloads real translation models on first use. The phrase-pack
+                    // registry is only a tiny fallback dictionary and must not determine whether
+                    // a language pair is supported by the actual offline translation engine.
+                    val sourceCode = if (isSourceSelection) lang.code else otherSelected.code
+                    val targetCode = if (isSourceSelection) otherSelected.code else lang.code
+                    val isPairAvailable = sourceCode.equals(targetCode, ignoreCase = true) ||
+                        (TranslateLanguage.fromLanguageTag(sourceCode) != null &&
+                         TranslateLanguage.fromLanguageTag(targetCode) != null)
 
                     LanguageItemRow(
                         language = lang,
@@ -302,13 +305,13 @@ private fun LanguageItemRow(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Check,
-                                contentDescription = "Phrase pack available",
+                                contentDescription = "Offline translation supported",
                                 tint = SuccessGreen,
                                 modifier = Modifier.size(14.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
-                                text = "Phrase pack available",
+                                text = "Supported • downloads on first use",
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     fontWeight = FontWeight.SemiBold,
                                     fontSize = 10.sp
@@ -328,13 +331,13 @@ private fun LanguageItemRow(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Warning,
-                                contentDescription = "Translation pack required",
+                                contentDescription = "Language pair not supported",
                                 tint = WarningOrange,
                                 modifier = Modifier.size(14.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
                             Text(
-                                text = "Translation pack needed",
+                                text = "Not supported offline",
                                 style = MaterialTheme.typography.labelSmall.copy(
                                     fontWeight = FontWeight.SemiBold,
                                     fontSize = 10.sp

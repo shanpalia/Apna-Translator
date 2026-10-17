@@ -7,7 +7,7 @@ Android translator focused on real on-device translation and offline use.
 - Translation uses Google ML Kit's on-device translation models.
 - The first use of a language pair may need internet access to download the model.
 - After the model is downloaded, translation runs on-device and user text is not sent to a translation server.
-- ML Kit supports 50+ languages; only supported language codes can be translated. The app's language picker may contain additional languages that are not yet wired to ML Kit.
+- The language picker now lists the 58 language codes documented by ML Kit Translation. Speech recognition and offline voice availability are separate and depend on device support.
 - The small JSON phrase packs currently in the repository are a limited fallback, not full translation models.
 
 ## Build locally

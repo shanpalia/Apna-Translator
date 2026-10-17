@@ -24,6 +24,11 @@ class AndroidSpeechRecognizerEngine(
 
     private val mainHandler = Handler(Looper.getMainLooper())
     private var speechRecognizer: SpeechRecognizer? = null
+    @Volatile private var continuousListening = false
+    private var activeLanguageTag = "en-US"
+    private var preferOffline = true
+    private var committedTranscript = ""
+    private val restartListening = Runnable { startRecognitionSession() }
 
     private val _isListening = MutableStateFlow(false)
     override val isListening: StateFlow<Boolean> = _isListening.asStateFlow()
@@ -59,7 +64,22 @@ class AndroidSpeechRecognizerEngine(
                 _partialResult.value = ""
                 _finalResult.value = ""
                 _rmsDb.value = 0f
+                activeLanguageTag = bcp47Tag
+                preferOffline = preferOfflineOnly
+                committedTranscript = ""
+                continuousListening = true
+                startRecognitionSession()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error starting speech recognition: ${e.message}", e)
+                _errorMessage.value = "Failed to start speech recognition: ${e.localizedMessage ?: "Unknown error"}"
+                _isListening.value = false
+            }
+        }
+    }
 
+    private fun startRecognitionSession() {
+        if (!continuousListening) return
+        try {
                 if (!SpeechRecognizer.isRecognitionAvailable(context)) {
                     _errorMessage.value = "Speech recognition service is not available on this device."
                     _isListening.value = false
@@ -76,7 +96,7 @@ class AndroidSpeechRecognizerEngine(
                 // Offline-only mode must not silently fall back to a network-backed recognizer.
                 // EXTRA_PREFER_OFFLINE is only a preference; the standard recognizer may still
                 // use a remote service.
-                if (preferOfflineOnly && !onDeviceAvailable) {
+                if (preferOffline && !onDeviceAvailable) {
                     _errorMessage.value =
                         "Offline speech recognition is not available on this device. Install the offline language model in your system speech settings."
                     _isListening.value = false
@@ -99,8 +119,9 @@ class AndroidSpeechRecognizerEngine(
 
                 val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
                     putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-                    putExtra(RecognizerIntent.EXTRA_LANGUAGE, bcp47Tag)
-                    putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, bcp47Tag)
+                    putExtra(RecognizerIntent.EXTRA_LANGUAGE, activeLanguageTag)
+                    putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, activeLanguageTag)
+                    putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, preferOffline)
                     putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
                     putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
                 }
@@ -108,16 +129,24 @@ class AndroidSpeechRecognizerEngine(
                 speechRecognizer?.setRecognitionListener(createListener())
                 speechRecognizer?.startListening(intent)
                 _isListening.value = true
-            } catch (e: Exception) {
-                Log.e(TAG, "Error starting speech recognition: ${e.message}", e)
-                _errorMessage.value = "Failed to start speech recognition: ${e.localizedMessage ?: "Unknown error"}"
-                _isListening.value = false
-            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error starting recognition session: ${e.message}", e)
+            _errorMessage.value = "Failed to start speech recognition: ${e.localizedMessage ?: "Unknown error"}"
+            scheduleRestart()
+        }
+    }
+
+    private fun scheduleRestart() {
+        if (continuousListening) {
+            mainHandler.removeCallbacks(restartListening)
+            mainHandler.postDelayed(restartListening, 250L)
         }
     }
 
     override fun stopListening() {
         mainHandler.post {
+            continuousListening = false
+            mainHandler.removeCallbacks(restartListening)
             try {
                 speechRecognizer?.stopListening()
             } catch (e: Exception) {
@@ -130,6 +159,8 @@ class AndroidSpeechRecognizerEngine(
 
     override fun cancel() {
         mainHandler.post {
+            continuousListening = false
+            mainHandler.removeCallbacks(restartListening)
             try {
                 speechRecognizer?.cancel()
             } catch (e: Exception) {
@@ -142,6 +173,8 @@ class AndroidSpeechRecognizerEngine(
 
     override fun release() {
         mainHandler.post {
+            continuousListening = false
+            mainHandler.removeCallbacks(restartListening)
             try {
                 speechRecognizer?.destroy()
             } catch (e: Exception) {
@@ -177,20 +210,26 @@ class AndroidSpeechRecognizerEngine(
             override fun onError(errorCode: Int) {
                 _isListening.value = false
                 _rmsDb.value = 0f
+                val recoverable = errorCode == SpeechRecognizer.ERROR_NO_MATCH ||
+                    errorCode == SpeechRecognizer.ERROR_SPEECH_TIMEOUT ||
+                    errorCode == SpeechRecognizer.ERROR_RECOGNIZER_BUSY
+                if (recoverable && continuousListening) {
+                    _errorMessage.value = null
+                    scheduleRestart()
+                    return
+                }
                 val message = mapErrorCodeToMessage(errorCode)
                 Log.w(TAG, "Recognition error ($errorCode): $message")
                 _errorMessage.value = message
-
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
                     errorCode == SpeechRecognizer.ERROR_SERVER_DISCONNECTED
                 ) {
-                    try {
-                        speechRecognizer?.destroy()
-                    } catch (e: Exception) {
+                    try { speechRecognizer?.destroy() } catch (e: Exception) {
                         Log.w(TAG, "Error destroying disconnected recognizer: ${e.message}")
                     }
                     speechRecognizer = null
                 }
+                scheduleRestart()
             }
 
             override fun onResults(results: Bundle?) {
@@ -198,18 +237,24 @@ class AndroidSpeechRecognizerEngine(
                 _rmsDb.value = 0f
                 val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                 if (!matches.isNullOrEmpty()) {
-                    val text = matches[0]
-                    _finalResult.value = text
-                    _partialResult.value = text
-                } else {
-                    _errorMessage.value = "No speech detected. Please try again."
+                    val phrase = matches[0].trim()
+                    if (phrase.isNotBlank()) {
+                        committedTranscript = listOf(committedTranscript, phrase)
+                            .filter { it.isNotBlank() }.joinToString(" ")
+                        _finalResult.value = committedTranscript
+                        _partialResult.value = committedTranscript
+                        _errorMessage.value = null
+                    }
                 }
+                scheduleRestart()
             }
 
             override fun onPartialResults(partialResults: Bundle?) {
                 val matches = partialResults?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                 if (!matches.isNullOrEmpty()) {
-                    _partialResult.value = matches[0]
+                    val partial = matches[0].trim()
+                    _partialResult.value = listOf(committedTranscript, partial)
+                        .filter { it.isNotBlank() }.joinToString(" ")
                 }
             }
 

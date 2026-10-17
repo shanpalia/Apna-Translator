@@ -313,13 +313,13 @@ class WhisperSpeechRecognizerEngine(
                     withContext(Dispatchers.Main) {
                         _isListening.value = false
                         _rmsDb.value = 0f
-                        if (text.isNotBlank() && matchesSelectedLanguageScript(text, currentLanguageCode)) {
+                        if (text.isNotBlank()) {
+                            // Whisper may legitimately return romanized/transliterated text
+                            // for some languages and recordings. Do not discard valid speech
+                            // solely because a strict Unicode-script heuristic disagrees.
                             _finalResult.value = text
                             _partialResult.value = text
                             _errorMessage.value = null
-                        } else if (text.isNotBlank()) {
-                            _partialResult.value = ""
-                            _errorMessage.value = "Speech recognition returned text in the wrong script for the selected language. Check the language and try again."
                         } else {
                             _partialResult.value = ""
                             _errorMessage.value = "Speech could not be recognized. Please try again."

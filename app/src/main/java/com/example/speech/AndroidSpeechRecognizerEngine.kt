@@ -28,6 +28,7 @@ class AndroidSpeechRecognizerEngine(
     private var activeLanguageTag = "en-US"
     private var preferOffline = true
     private var committedTranscript = ""
+    private var modelDownloadRequested = false
     private val restartListening = Runnable { startRecognitionSession() }
 
     private val _isListening = MutableStateFlow(false)
@@ -67,6 +68,7 @@ class AndroidSpeechRecognizerEngine(
                 activeLanguageTag = bcp47Tag
                 preferOffline = preferOfflineOnly
                 committedTranscript = ""
+                modelDownloadRequested = false
                 continuousListening = true
                 startRecognitionSession()
             } catch (e: Exception) {
@@ -210,6 +212,31 @@ class AndroidSpeechRecognizerEngine(
             override fun onError(errorCode: Int) {
                 _isListening.value = false
                 _rmsDb.value = 0f
+                if ((errorCode == SpeechRecognizer.ERROR_LANGUAGE_UNAVAILABLE ||
+                     errorCode == SpeechRecognizer.ERROR_NETWORK) &&
+                    Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                    !modelDownloadRequested && continuousListening
+                ) {
+                    modelDownloadRequested = true
+                    try {
+                        val downloadIntent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply {
+                            putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+                            putExtra(RecognizerIntent.EXTRA_LANGUAGE, activeLanguageTag)
+                            putExtra(RecognizerIntent.EXTRA_LANGUAGE_PREFERENCE, activeLanguageTag)
+                            putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true)
+                            putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+                            putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1)
+                        }
+                        speechRecognizer?.triggerModelDownload(downloadIntent)
+                        _errorMessage.value = "Downloading offline speech model for $activeLanguageTag. Please keep internet on; listening will retry automatically."
+                        mainHandler.postDelayed({
+                            if (continuousListening) startRecognitionSession()
+                        }, 5000L)
+                        return
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Automatic speech model download request failed", e)
+                    }
+                }
                 val recoverable = errorCode == SpeechRecognizer.ERROR_NO_MATCH ||
                     errorCode == SpeechRecognizer.ERROR_SPEECH_TIMEOUT ||
                     errorCode == SpeechRecognizer.ERROR_RECOGNIZER_BUSY

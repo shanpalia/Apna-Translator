@@ -23,6 +23,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -59,6 +61,13 @@ class MainViewModel(
 
         viewModelScope.launch {
             languagePackManager.initialize()
+        }
+
+        // Translate typed text automatically after a short pause.
+        viewModelScope.launch {
+            sourceText.debounce(450).distinctUntilChanged().collect { text ->
+                if (text.isNotBlank()) translateText(text)
+            }
         }
 
         // Collect final recognized speech results

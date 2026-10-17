@@ -95,6 +95,8 @@ dependencies {
   // implementation(libs.coil.compose)
   implementation(libs.converter.moshi)
   implementation(libs.firebase.ai)
+  // Real on-device translation with downloadable language models
+  implementation("com.google.mlkit:translate:17.0.3")
   // Uncomment to use Firestore:
   // implementation(libs.firebase.firestore)
 

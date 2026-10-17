@@ -1,37 +1,29 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
-</div>
+# Apna Translator — by ShanPalia
 
-# Run and deploy your AI Studio app
+Android translator focused on real on-device translation and offline use.
 
-This contains everything you need to run your app locally.
+## Offline translation
 
-View your app in AI Studio: https://ai.studio/apps/20aa38f9-56f6-4dd8-b8f3-26cf12ea2c76
+- Translation uses Google ML Kit's on-device translation models.
+- The first use of a language pair may need internet access to download the model.
+- After the model is downloaded, translation runs on-device and user text is not sent to a translation server.
+- The language picker now lists the 58 language codes documented by ML Kit Translation. Speech recognition and offline voice availability are separate and depend on device support.
+- The small JSON phrase packs currently in the repository are a limited fallback, not full translation models.
 
-## Run Locally
+## Build locally
 
-**Prerequisites:**  [Android Studio](https://developer.android.com/studio)
+1. Open this repository in Android Studio.
+2. Allow Gradle sync to finish.
+3. Build and run the app on Android 8.0 (API 26) or newer.
 
+The .env.example file is retained for any existing Firebase/AI features. ML Kit on-device translation does not require a Gemini API key.
 
-1. Open Android Studio
-2. Select **Open** and choose the directory containing this project
-3. Allow Android Studio to fix any incompatibilities as it imports the project.
-4. Create a file named `.env` in the project directory and set `GEMINI_API_KEY` in that file to your Gemini API key (see `.env.example` for an example)
-5. Remove this line from the app's `build.gradle.kts` file: `signingConfig = signingConfigs.getByName("debugConfig")`
-6. Run the app on an emulator or physical device
-7. If you have already published your app in AI Studio, please [request upload key reset](https://support.google.com/googleplay/android-developer/answer/9842756#zippy=%2Crequest-an-upload-key-reset) in Google Play Console.
+## Build APK with GitHub Actions
 
+The workflow in .github/workflows/main.yml builds a debug APK and uploads it as an artifact. Open Actions → Build APK → Run workflow, then download the Apna-Translator-debug artifact from the completed run.
 
-## GitHub Actions signed APK
+## Important notes
 
-The repository includes `.github/workflows/android-release.yml`. It builds a signed release APK and uploads it as a GitHub Actions artifact.
-
-Create these GitHub Actions repository secrets before running the workflow:
-
-- `KEYSTORE_BASE64` — Base64 contents of the release JKS/keystore file
-- `STORE_PASSWORD` — keystore password
-- `KEY_PASSWORD` — signing key password
-
-The Gradle signing configuration expects the key alias `upload`. Do not commit the keystore or passwords to the repository.
-
-The workflow can be started from **GitHub → Actions → Build Signed APK → Run workflow**.
+- First model download requires network connectivity. The model remains available for later offline translation.
+- Google ML Kit language models are downloaded and managed by Google Play services/app storage; exact download size and progress are controlled by ML Kit and may not be exposed by its API.
+- Offline speech recognition and offline text-to-speech are separate features and depend on the selected speech/voice models being installed on the device.

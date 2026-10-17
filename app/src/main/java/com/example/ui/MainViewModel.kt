@@ -14,6 +14,7 @@ import com.example.speech.SpeechRecognizerEngine
 import com.example.translation.LanguagePackManager
 import com.example.translation.ModelPackInfo
 import com.example.translation.OfflineTranslationEngine
+import com.example.translation.MlKitOfflineTranslationEngine
 import com.example.translation.TranslationEngine
 import com.example.translation.TranslationResult
 import com.example.tts.AndroidOfflineTtsEngine
@@ -50,7 +51,7 @@ class MainViewModel(
         val db = AppDatabase.getDatabase(application)
         historyRepository = HistoryRepository(db.historyDao())
         languagePackManager = LanguagePackManager(application)
-        translationEngine = OfflineTranslationEngine(languagePackManager)
+        translationEngine = MlKitOfflineTranslationEngine(OfflineTranslationEngine(languagePackManager))
         whisperSpeechEngine = WhisperSpeechRecognizerEngine(application)
         speechEngine = whisperSpeechEngine
         ttsEngine = AndroidOfflineTtsEngine(application)

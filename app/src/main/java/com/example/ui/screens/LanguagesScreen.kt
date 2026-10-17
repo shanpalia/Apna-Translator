@@ -108,7 +108,7 @@ fun LanguagesScreen(
         ) {
             Column {
                 Text(
-                    text = "Offline Phrase Packs",
+                    text = "Phrase Fallback Packs",
                     style = MaterialTheme.typography.titleLarge.copy(
                         fontWeight = FontWeight.Bold,
                         fontSize = 20.sp
@@ -116,7 +116,7 @@ fun LanguagesScreen(
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
-                    text = "Small phrase dictionaries only — not full AI models • storage: $storageFormatted",
+                    text = "Optional small dictionaries. Full translation models download on first use • phrase storage: $storageFormatted",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

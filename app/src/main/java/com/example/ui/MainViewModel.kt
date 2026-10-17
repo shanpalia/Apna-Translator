@@ -10,6 +10,7 @@ import com.example.data.network.NetworkMonitor
 import com.example.model.Language
 import com.example.model.SupportedLanguages
 import com.example.speech.WhisperSpeechRecognizerEngine
+import com.example.speech.AndroidSpeechRecognizerEngine
 import com.example.speech.SpeechRecognizerEngine
 import com.example.translation.LanguagePackManager
 import com.example.translation.ModelPackInfo
@@ -55,12 +56,27 @@ class MainViewModel(
         languagePackManager = LanguagePackManager(application)
         translationEngine = MlKitOfflineTranslationEngine(OfflineTranslationEngine(languagePackManager))
         whisperSpeechEngine = WhisperSpeechRecognizerEngine(application)
-        speechEngine = whisperSpeechEngine
+        // Android's streaming recognizer publishes partial words immediately; Whisper remains
+        // available for the optional offline model-download flow.
+        speechEngine = AndroidSpeechRecognizerEngine(application)
         ttsEngine = AndroidOfflineTtsEngine(application)
         networkMonitor = NetworkMonitor(application)
 
         viewModelScope.launch {
             languagePackManager.initialize()
+        }
+
+        // Show partial speech immediately while the user is still speaking.
+        viewModelScope.launch {
+            speechEngine.partialResult.collect { partial ->
+                if (partial.isNotBlank() && partial != "Paused" &&
+                    !partial.startsWith("Downloading speech model") &&
+                    !partial.startsWith("Offline speech model") &&
+                    activeConversationSpeaker == null
+                ) {
+                    _sourceText.value = partial
+                }
+            }
         }
 
         // Collect final recognized speech results
